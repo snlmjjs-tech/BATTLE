@@ -37,7 +37,25 @@
     <h1 class="text-3xl md:text-4xl font-cinzel font-black text-center text-amber-300 glow-gold mb-1">⚔️ BATTLE CASTLE 3D</h1>
     <p class="text-center text-amber-200/70 font-medieval mb-6">Cinco reinos. Un pasado simple. Una sola corona.</p>
     <div id="player-inputs" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"></div>
+    <button id="edit-verbs-btn" type="button" class="w-full py-2.5 mb-3 rounded-xl bg-stone-800/80 border border-amber-700/40 text-amber-200 font-cinzel font-bold hover:bg-amber-900/40 transition">📝 Cambiar verbos</button>
     <button id="start-btn" type="button" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-500 text-stone-900 font-cinzel font-black text-lg shadow-lg hover:brightness-110 active:scale-95 transition">🏰 COMENZAR LA GUERRA</button>
+  </div>
+</div>
+
+<!-- ================= VERB EDITOR MODAL ================= -->
+<div id="verb-modal" class="hidden fixed inset-0 z-40 items-center justify-center bg-black/70 p-3">
+  <div class="panel rounded-2xl p-5 w-full max-w-3xl fade-in max-h-[88vh] flex flex-col">
+    <h3 class="text-xl font-cinzel font-black text-amber-300 mb-1 text-center">📝 EDITAR VERBOS</h3>
+    <p class="text-amber-200/70 text-xs mb-3 text-center font-medieval">Pasado simple, infinitivo correcto y dos alternativas incorrectas.</p>
+    <div id="verb-rows" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
+    <div class="flex flex-wrap gap-2 mt-3">
+      <button id="verb-add-btn" type="button" class="px-4 py-2 rounded-lg bg-stone-800/80 border border-amber-700/40 text-amber-100 text-sm font-bold hover:bg-amber-900/40">➕ Añadir verbo</button>
+      <button id="verb-reset-btn" type="button" class="px-4 py-2 rounded-lg bg-stone-800/80 border border-amber-700/40 text-amber-100 text-sm font-bold hover:bg-amber-900/40">↩️ Restaurar por defecto</button>
+      <div class="flex-1"></div>
+      <button id="verb-cancel-btn" type="button" class="px-4 py-2 rounded-lg bg-stone-800/80 border border-stone-600/40 text-stone-300 text-sm font-bold hover:bg-stone-700/60">Cancelar</button>
+      <button id="verb-save-btn" type="button" class="px-5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-500 text-stone-900 text-sm font-cinzel font-black hover:brightness-110">💾 Guardar</button>
+    </div>
+    <div id="verb-error" class="text-red-400 text-xs mt-2 text-center"></div>
   </div>
 </div>
 
@@ -109,7 +127,7 @@
 /* ===========================================================
    A. VERB BANK
 =========================================================== */
-const VERB_BANK = [
+const DEFAULT_VERB_BANK = [
   { past:"ATE", correct:"EAT", options:["EAT","DRINK","WRITE"] },
   { past:"SAW", correct:"SEE", options:["SEE","SAY","SING"] },
   { past:"WENT", correct:"GO", options:["GO","WANT","WALK"] },
@@ -141,6 +159,8 @@ const VERB_BANK = [
   { past:"WON", correct:"WIN", options:["WIN","WRITE","WEAR"] },
   { past:"BROKE", correct:"BREAK", options:["BREAK","BRING","BUILD"] }
 ];
+
+let VERB_BANK = DEFAULT_VERB_BANK.map(q=>({past:q.past, correct:q.correct, options:q.options.slice()}));
 
 /* ===========================================================
    B. BIOMES / KINGDOMS CONFIG (matches reference layout: 4 corners + center)
@@ -184,6 +204,75 @@ KINGDOMS.forEach((k,i)=>{
 });
 
 document.getElementById("start-btn").addEventListener("click", startGame);
+
+/* ---- Verb editor ---- */
+const verbModal = document.getElementById("verb-modal");
+const verbRowsEl = document.getElementById("verb-rows");
+const verbErrorEl = document.getElementById("verb-error");
+
+function makeVerbRow(q){
+  q = q || {past:"", correct:"", options:["","",""]};
+  const row = document.createElement("div");
+  row.className = "flex flex-wrap items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 border border-amber-900/30";
+  row.innerHTML = `
+    <input type="text" placeholder="Pasado (ej. WENT)" class="v-past bg-stone-900/70 rounded px-2 py-1 text-amber-50 text-xs w-28 outline-none border border-amber-900/40" value="${q.past}">
+    <input type="text" placeholder="Correcto (ej. GO)" class="v-correct bg-stone-900/70 rounded px-2 py-1 text-emerald-300 text-xs w-28 outline-none border border-amber-900/40" value="${q.correct}">
+    <input type="text" placeholder="Alternativa 2" class="v-opt2 bg-stone-900/70 rounded px-2 py-1 text-amber-100 text-xs w-28 outline-none border border-amber-900/40" value="${(q.options.find(o=>o!==q.correct)||"")}">
+    <input type="text" placeholder="Alternativa 3" class="v-opt3 bg-stone-900/70 rounded px-2 py-1 text-amber-100 text-xs w-28 outline-none border border-amber-900/40" value="${(q.options.filter(o=>o!==q.correct)[1]||"")}">
+    <button type="button" class="v-del ml-auto px-2 py-1 rounded text-red-300 hover:bg-red-900/30 text-xs">🗑️</button>
+  `;
+  row.querySelector(".v-del").addEventListener("click", ()=> row.remove());
+  return row;
+}
+
+function renderVerbRows(bank){
+  verbRowsEl.innerHTML = "";
+  bank.forEach(q=> verbRowsEl.appendChild(makeVerbRow(q)));
+}
+
+document.getElementById("edit-verbs-btn").addEventListener("click", ()=>{
+  verbErrorEl.textContent = "";
+  renderVerbRows(VERB_BANK);
+  verbModal.classList.remove("hidden"); verbModal.classList.add("flex");
+});
+
+document.getElementById("verb-cancel-btn").addEventListener("click", ()=>{
+  verbModal.classList.add("hidden"); verbModal.classList.remove("flex");
+});
+
+document.getElementById("verb-add-btn").addEventListener("click", ()=>{
+  verbRowsEl.appendChild(makeVerbRow());
+  verbRowsEl.scrollTop = verbRowsEl.scrollHeight;
+});
+
+document.getElementById("verb-reset-btn").addEventListener("click", ()=>{
+  renderVerbRows(DEFAULT_VERB_BANK);
+});
+
+document.getElementById("verb-save-btn").addEventListener("click", ()=>{
+  const rows = Array.from(verbRowsEl.children);
+  const parsed = [];
+  for(const row of rows){
+    const past = row.querySelector(".v-past").value.trim().toUpperCase();
+    const correct = row.querySelector(".v-correct").value.trim().toUpperCase();
+    const opt2 = row.querySelector(".v-opt2").value.trim().toUpperCase();
+    const opt3 = row.querySelector(".v-opt3").value.trim().toUpperCase();
+    if(!past && !correct && !opt2 && !opt3) continue; // skip fully empty rows
+    if(!past || !correct || !opt2 || !opt3){
+      verbErrorEl.textContent = "Completa los 4 campos de cada verbo (o elimina la fila vacía).";
+      return;
+    }
+    parsed.push({past, correct, options:[correct, opt2, opt3]});
+  }
+  if(parsed.length < 3){
+    verbErrorEl.textContent = "Necesitas al menos 3 verbos para jugar.";
+    return;
+  }
+  VERB_BANK = parsed;
+  gameState.usedQuestions = [];
+  verbErrorEl.textContent = "";
+  verbModal.classList.add("hidden"); verbModal.classList.remove("flex");
+});
 
 function startGame(){
   const inputs = document.querySelectorAll(".player-name-input");
