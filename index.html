@@ -768,76 +768,104 @@
                 this.init();
                 this.musicPlaying = true;
 
-                // Escala A Dorian (modo medieval clásico): A B C D E F# G
-                const scale = [220.00, 246.94, 261.63, 293.66, 329.63, 369.99, 392.00, 440.00];
-                // Melodía con saltos modales y reposos, estilo cantiga/danza antigua
-                const melody = [
-                    0, 2, 3, 4, 3, 2, 0, 2,
-                    4, 6, 5, 4, 3, 2, 1, 0,
-                    0, 3, 5, 7, 5, 3, 2, 0,
-                    2, 4, 3, 2, 0, -1, 0, -1
+                // Ostinato de chelos al galope (estilo tema de intro épico): tónica/quinta alternadas en C menor
+                const root = 130.81; // C3
+                const fifth = root * 1.5; // G3
+                const octRoot = root * 2; // C4
+                // Patrón de 6 corcheas por compás, "duh-duh duh duh duh-duh"
+                const ostinatoPattern = [root, fifth, root, fifth, root, fifth];
+
+                // Motivo melódico ascendente que entra cada 2 compases (estilo metales/violines del tema)
+                const melodyNotes = [octRoot, octRoot * 1.1892, octRoot * 1.3348, octRoot * 1.4983, octRoot * 1.3348, octRoot * 1.1892];
+                const melodyPattern = [
+                    null, null, melodyNotes[0], null, melodyNotes[1], null,
+                    null, null, melodyNotes[2], null, melodyNotes[3], null,
+                    null, null, melodyNotes[4], null, melodyNotes[5], null,
+                    null, null, melodyNotes[0] * 2, null, null, null
                 ];
 
-                this.currentTempo = 86; // Más pausado y solemne
-                const stepDuration = 60 / this.currentTempo;
+                this.currentTempo = 138; // galope rápido, tipo banda sonora épica
+                const stepDuration = 60 / this.currentTempo / 2; // corcheas
 
-                // Dron grave de "viola de rueda" sostenido bajo toda la melodía
-                const droneOsc1 = this.ctx.createOscillator();
-                const droneOsc2 = this.ctx.createOscillator();
-                const droneGain = this.ctx.createGain();
-                const droneFilter = this.ctx.createBiquadFilter();
-                droneFilter.type = 'lowpass';
-                droneFilter.frequency.value = 500;
-                droneOsc1.type = 'sawtooth';
-                droneOsc2.type = 'sawtooth';
-                droneOsc1.frequency.value = scale[0] / 2;
-                droneOsc2.frequency.value = (scale[0] / 2) * 1.005; // leve desafinación para textura de cuerda
-                droneOsc1.connect(droneFilter);
-                droneOsc2.connect(droneFilter);
-                droneFilter.connect(droneGain);
-                droneGain.connect(this.ctx.destination);
-                droneGain.gain.value = 0;
-                droneGain.gain.linearRampToValueAtTime(this.volume * 0.08, this.ctx.currentTime + 1.5);
-                droneOsc1.start();
-                droneOsc2.start();
-                this.droneOsc1 = droneOsc1;
-                this.droneOsc2 = droneOsc2;
-                this.droneGain = droneGain;
+                // Pad grave sostenido de fondo (cuerdas/coro lejano)
+                const padOsc1 = this.ctx.createOscillator();
+                const padOsc2 = this.ctx.createOscillator();
+                const padGain = this.ctx.createGain();
+                const padFilter = this.ctx.createBiquadFilter();
+                padFilter.type = 'lowpass';
+                padFilter.frequency.value = 700;
+                padOsc1.type = 'sawtooth';
+                padOsc2.type = 'sawtooth';
+                padOsc1.frequency.value = root / 2;
+                padOsc2.frequency.value = (root / 2) * 1.003;
+                padOsc1.connect(padFilter);
+                padOsc2.connect(padFilter);
+                padFilter.connect(padGain);
+                padGain.connect(this.ctx.destination);
+                padGain.gain.value = 0;
+                padGain.gain.linearRampToValueAtTime(this.volume * 0.1, this.ctx.currentTime + 2);
+                padOsc1.start();
+                padOsc2.start();
+                this.droneOsc1 = padOsc1;
+                this.droneOsc2 = padOsc2;
+                this.droneGain = padGain;
 
                 const playStep = () => {
                     if (!this.musicPlaying || this.muted) return;
 
                     const now = this.ctx.currentTime;
-                    const scaleIndex = melody[this.step % melody.length];
+                    const barStep = this.step % ostinatoPattern.length;
 
-                    // Nota tipo "pulsada" (laúd/arpa): sawtooth + filtro paso bajo con decaimiento rápido
-                    if (scaleIndex >= 0) {
-                        const freq = scaleIndex >= 7 ? scale[scaleIndex % 8] * 2 : scale[scaleIndex];
+                    // Ostinato de chelo: notas cortas, percutidas, urgentes
+                    const celloFreq = ostinatoPattern[barStep];
+                    let osc = this.ctx.createOscillator();
+                    let filt = this.ctx.createBiquadFilter();
+                    let gain = this.ctx.createGain();
+                    osc.connect(filt);
+                    filt.connect(gain);
+                    gain.connect(this.ctx.destination);
 
-                        let osc = this.ctx.createOscillator();
-                        let filt = this.ctx.createBiquadFilter();
-                        let gain = this.ctx.createGain();
-                        osc.connect(filt);
-                        filt.connect(gain);
-                        gain.connect(this.ctx.destination);
+                    osc.type = 'sawtooth';
+                    filt.type = 'lowpass';
+                    filt.frequency.setValueAtTime(1400, now);
+                    filt.frequency.exponentialRampToValueAtTime(400, now + stepDuration * 0.9);
+                    osc.frequency.setValueAtTime(celloFreq, now);
 
-                        osc.type = 'sawtooth';
-                        filt.type = 'lowpass';
-                        filt.frequency.setValueAtTime(2200, now);
-                        filt.frequency.exponentialRampToValueAtTime(500, now + stepDuration * 0.8);
-                        osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(this.volume * 0.28, now + 0.008);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + stepDuration * 0.95);
 
-                        gain.gain.setValueAtTime(0, now);
-                        gain.gain.linearRampToValueAtTime(this.volume * 0.22, now + 0.015);
-                        gain.gain.exponentialRampToValueAtTime(0.01, now + stepDuration * 0.85);
+                    osc.start(now);
+                    osc.stop(now + stepDuration);
 
-                        osc.start(now);
-                        osc.stop(now + stepDuration * 0.9);
+                    // Motivo melódico (cuerno/violín) por encima del ostinato
+                    const melodyFreq = melodyPattern[this.step % melodyPattern.length];
+                    if (melodyFreq) {
+                        let mOsc = this.ctx.createOscillator();
+                        let mFilt = this.ctx.createBiquadFilter();
+                        let mGain = this.ctx.createGain();
+                        mOsc.connect(mFilt);
+                        mFilt.connect(mGain);
+                        mGain.connect(this.ctx.destination);
+
+                        mOsc.type = 'sawtooth';
+                        mFilt.type = 'lowpass';
+                        mFilt.frequency.setValueAtTime(2600, now);
+                        mOsc.frequency.setValueAtTime(melodyFreq, now);
+                        // ligero vibrato para sensación de cuerdas/coro
+                        mOsc.frequency.linearRampToValueAtTime(melodyFreq * 1.003, now + stepDuration);
+
+                        mGain.gain.setValueAtTime(0, now);
+                        mGain.gain.linearRampToValueAtTime(this.volume * 0.3, now + 0.04);
+                        mGain.gain.exponentialRampToValueAtTime(0.01, now + stepDuration * 1.9);
+
+                        mOsc.start(now);
+                        mOsc.stop(now + stepDuration * 2);
                     }
 
-                    // Tambor suave (ruido filtrado) marcando el pulso cada 2 pasos
-                    if (this.step % 2 === 0) {
-                        const bufferSize = this.ctx.sampleRate * 0.12;
+                    // Percusión de timbal grave marcando cada compás (cada 6 pasos)
+                    if (barStep === 0) {
+                        const bufferSize = this.ctx.sampleRate * 0.18;
                         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                         const data = buffer.getChannelData(0);
                         for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
@@ -846,16 +874,16 @@
                         noise.buffer = buffer;
                         let noiseFilter = this.ctx.createBiquadFilter();
                         noiseFilter.type = 'lowpass';
-                        noiseFilter.frequency.setValueAtTime(this.step % 8 === 0 ? 220 : 320, now);
+                        noiseFilter.frequency.setValueAtTime(150, now);
                         let noiseGain = this.ctx.createGain();
-                        noiseGain.gain.setValueAtTime(this.volume * (this.step % 8 === 0 ? 0.32 : 0.18), now);
-                        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                        noiseGain.gain.setValueAtTime(this.volume * 0.4, now);
+                        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
 
                         noise.connect(noiseFilter);
                         noiseFilter.connect(noiseGain);
                         noiseGain.connect(this.ctx.destination);
                         noise.start(now);
-                        noise.stop(now + 0.12);
+                        noise.stop(now + 0.18);
                     }
 
                     this.step++;
@@ -2210,7 +2238,29 @@
             smoke.visible = false;
             group.add(smoke);
 
-            return { group, left, right, central, wall, door, banner, fire, smoke };
+            // Llamas y humo de ruina total (castillo destruido): varias columnas a los lados
+            const ruinFlames = [];
+            const ruinSmokes = [];
+            const ruinFireMat = new THREE.MeshBasicMaterial({ color: 0xff6a12, transparent: true, opacity: 0.9 });
+            const ruinSmokeMat = new THREE.MeshBasicMaterial({ color: 0x161616, transparent: true, opacity: 0.6 });
+            const ruinSpots = [
+                { x: -1.9, z: -1.5 }, { x: 1.9, z: -1.5 }, { x: -0.9, z: -0.2 }, { x: 0.9, z: -0.2 }
+            ];
+            ruinSpots.forEach((spot, idx) => {
+                const flame = new THREE.Mesh(new THREE.ConeGeometry(0.3 + (idx % 2) * 0.08, 0.9 + (idx % 2) * 0.3, 6), ruinFireMat.clone());
+                flame.position.set(spot.x, 0.55, spot.z);
+                flame.visible = false;
+                group.add(flame);
+                ruinFlames.push(flame);
+
+                const plume = new THREE.Mesh(new THREE.SphereGeometry(0.55 + (idx % 2) * 0.15, 8, 6), ruinSmokeMat.clone());
+                plume.position.set(spot.x, 1.6, spot.z);
+                plume.visible = false;
+                group.add(plume);
+                ruinSmokes.push(plume);
+            });
+
+            return { group, left, right, central, wall, door, banner, fire, smoke, ruinFlames, ruinSmokes };
         }
 
         // ---------- Construcción de un rey 3D (geometría real, "rey robusto") ----------
@@ -2439,6 +2489,10 @@
                 entry.right.visible = castle.hp > 2 && !castle.destroyed;
                 entry.fire.visible = castle.hp <= 2 && castle.hp > 0 && !castle.destroyed;
                 entry.smoke.visible = castle.hp <= 3 && castle.hp > 0 && !castle.destroyed;
+                if (entry.ruinFlames) {
+                    entry.ruinFlames.forEach(f => f.visible = !!castle.destroyed);
+                    entry.ruinSmokes.forEach(s => s.visible = !!castle.destroyed);
+                }
 
                 // Turno activo (anillo dorado + flecha flotante)
                 const isActiveTurn = gameState.currentTurn === i && gameState.status === 'playing' && !castle.destroyed;
@@ -2592,6 +2646,22 @@
                 if (entry.turnArrow.visible) {
                     entry.turnArrow.position.y = 7.6 + Math.sin(elapsed * 4.5) * 0.4;
                     entry.turnArrow.rotation.y += dt * 2.2;
+                }
+
+                // Llamas y humo de ruina total parpadeando/ascendiendo
+                if (entry.ruinFlames && entry.ruinFlames[0].visible) {
+                    entry.ruinFlames.forEach((flame, idx) => {
+                        const flick = 0.85 + Math.sin(elapsed * (9 + idx * 1.7) + idx) * 0.18;
+                        flame.scale.set(flick, 0.9 + Math.sin(elapsed * (7 + idx) + idx) * 0.25, flick);
+                        flame.rotation.y += dt * (2 + idx);
+                    });
+                    entry.ruinSmokes.forEach((plume, idx) => {
+                        const baseY = 1.6 + (idx % 2) * 0.2;
+                        plume.position.y = baseY + ((elapsed * (0.4 + idx * 0.07)) % 1.6);
+                        const riseT = ((elapsed * (0.4 + idx * 0.07)) % 1.6) / 1.6;
+                        plume.material.opacity = 0.6 * (1 - riseT);
+                        plume.scale.setScalar(1 + riseT * 0.8);
+                    });
                 }
 
                 // Animación del rey según su estado de ánimo
