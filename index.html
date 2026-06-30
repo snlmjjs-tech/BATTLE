@@ -1,1128 +1,2558 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>⚔️ BATTLE CASTLE 3D</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
-<style>
-  html,body{margin:0;padding:0;overflow:hidden;background:#04070d;font-family:'Cinzel',serif;}
-  #canvas-root{position:fixed;inset:0;z-index:0;}
-  .font-cinzel{font-family:'Cinzel',serif;}
-  .font-medieval{font-family:'MedievalSharp',cursive;}
-  .panel{background:rgba(15,12,8,0.78);backdrop-filter:blur(6px);border:1px solid rgba(212,175,55,0.35);}
-  .glow-gold{text-shadow:0 0 8px rgba(255,210,90,0.7);}
-  ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:#9c7a2c;border-radius:4px;}
-  input,select{-webkit-user-select:text;user-select:text;touch-action:manipulation;}
-  .sand-fill{transform-origin:bottom;transition:transform 1s linear;}
-  .crackle{animation:crackle 2.4s linear infinite;}
-  @keyframes crackle{0%,100%{opacity:.7}50%{opacity:1}}
-  .opt-btn{transition:.15s; }
-  .opt-btn:active{transform:scale(.96);}
-  .fade-in{animation:fadeIn .35s ease both;}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BATTLE CASTLE - Irregular Verbs 3D Game</title>
+    <!-- Tailwind CSS para diseño rápido y responsivo -->
+    <!-- Silencia el aviso informativo de Tailwind CDN (no es un error, es solo una nota de Tailwind) -->
+    <script>
+        (function() {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                if (args.some(a => typeof a === 'string' && a.includes('cdn.tailwindcss.com'))) return;
+                originalWarn.apply(console, args);
+            };
+        })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Medievales -->
+    <link href="https://fonts.googleapis.com/css2?family=Almendra:ital,wght@0,400;0,700;1,400&family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
+
+    <!-- Three.js: motor de renderizado 3D real (geometría, cámara, luces y sombras verdaderas) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <style>
+        .font-medieval {
+            font-family: 'MedievalSharp', cursive, serif;
+        }
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+        .font-decorative {
+            font-family: 'Cinzel Decorative', serif;
+        }
+        
+        body {
+            font-family: 'Almendra', serif;
+            background-color: #0c0813;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* FONDO PANORÁMICO 3D CON MONTAÑAS Y NEBLINA */
+        .mountain-bg {
+            background: linear-gradient(to bottom, #110925 0%, #1c0a35 40%, #2e114d 70%, #120524 100%);
+        }
+
+        /* ANIMACIONES EN PERSPECTIVA 3D PARA LAS CARTAS */
+        .premium-card-container {
+            perspective: 1200px;
+        }
+        .premium-card {
+            transform-style: preserve-3d;
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s ease, border-color 0.4s ease;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+        }
+        .premium-card:hover:not(.grayscale) {
+            transform: translateY(-8px) rotateX(4deg) rotateY(-4deg);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.9), 0 0 20px rgba(245, 158, 11, 0.25);
+        }
+
+        /* Animación del Rey en 3D (Flotando con volumen) */
+        @keyframes breathing {
+            0%, 100% { transform: translateY(0px) scale(1) rotate(0deg); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6)); }
+            50% { transform: translateY(-4px) scale(1.02) rotate(1deg); filter: drop-shadow(0 10px 12px rgba(0,0,0,0.4)); }
+        }
+        .king-idle {
+            animation: breathing 3s ease-in-out infinite;
+        }
+
+        @keyframes celebration {
+            0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+            25% { transform: translateY(-12px) rotate(-8deg) scale(1.05); }
+            50% { transform: translateY(0px) rotate(8deg) scale(1); }
+            75% { transform: translateY(-12px) rotate(-8deg) scale(1.05); }
+        }
+        .king-correct {
+            animation: celebration 0.7s ease-in-out infinite;
+        }
+
+        @keyframes defeated {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(6px) rotate(12deg) scale(0.95); }
+        }
+        .king-incorrect {
+            animation: defeated 1.3s ease-in-out infinite;
+        }
+
+        @keyframes panicked {
+            0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+            20% { transform: translate(-5px, -3px) rotate(-2deg); }
+            40% { transform: translate(5px, -5px) rotate(3deg); }
+            60% { transform: translate(-4px, 2px) rotate(-1deg); }
+            80% { transform: translate(4px, -1px) rotate(2deg); }
+        }
+        .king-hit {
+            animation: panicked 0.15s linear infinite;
+        }
+
+        @keyframes run-away {
+            0% { transform: translateX(0) scaleX(1); opacity: 1; }
+            50% { transform: translateX(40px) scaleX(1); opacity: 0.8; }
+            51% { transform: translateX(40px) scaleX(-1); opacity: 0.8; }
+            100% { transform: translateX(-150px) scaleX(-1); opacity: 0; }
+        }
+        .king-destroyed {
+            animation: run-away 2.2s ease-in-out forwards;
+        }
+
+        /* Ondulación realista de banderas */
+        @keyframes flag-wave {
+            0%, 100% { transform: skewY(0deg) scaleX(1) rotate(0deg); }
+            50% { transform: skewY(6deg) scaleX(0.93) rotate(-2deg); }
+        }
+        .flag-wave-element {
+            animation: flag-wave 1.4s ease-in-out infinite;
+            transform-origin: left center;
+        }
+
+        /* Pergamino clásico */
+        .parchment {
+            background: radial-gradient(circle, #fbf3d8 60%, #dfbf7c 100%);
+            border: 8px double #5a3a16;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.85), inset 0 0 50px rgba(90, 58, 22, 0.45);
+        }
+
+        /* Botón de Estilo RPG con relieve e iluminación */
+        .rpg-btn {
+            background: linear-gradient(180deg, #c3942d, #835c0d);
+            border: 2.5px solid #ffe855;
+            box-shadow: 0 5px 8px rgba(0,0,0,0.65), inset 0 2px 3px rgba(255,255,255,0.3);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+            transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .rpg-btn:hover:not(:disabled) {
+            transform: scale(1.05) translateY(-2px);
+            background: linear-gradient(180deg, #ffe855, #a37515);
+            box-shadow: 0 8px 15px rgba(255, 232, 85, 0.45);
+        }
+        .rpg-btn:active:not(:disabled) {
+            transform: scale(0.97) translateY(1px);
+        }
+
+        /* Sacudida de Pantalla */
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-7px, -5px) rotate(-1deg); }
+            30% { transform: translate(6px, 4px) rotate(1deg); }
+            50% { transform: translate(-5px, 7px) rotate(-1deg); }
+            70% { transform: translate(7px, -3px) rotate(1deg); }
+            90% { transform: translate(-3px, 3px) rotate(0deg); }
+        }
+        .screen-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Relieve 3D de cofres */
+        .chest-card {
+            perspective: 800px;
+        }
+        .chest-inner {
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+        }
+        .chest-card.flipped .chest-inner {
+            transform: rotateY(180deg);
+        }
+        .chest-front, .chest-back {
+            backface-visibility: hidden;
+        }
+        .chest-back {
+            transform: rotateY(180deg);
+        }
+    </style>
 </head>
-<body class="text-amber-50">
+<body class="min-h-screen text-amber-50 selection:bg-amber-800 selection:text-white flex flex-col justify-between relative mountain-bg">
 
-<div id="canvas-root"></div>
+    <!-- CAPAS DEL PAISAJE MEDIEVAL EN 3D DE FONDO -->
+    <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        
+        <!-- Cielo estrellado y Neblina lejana -->
+        <div class="absolute inset-x-0 top-0 h-2/3 opacity-30 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]"></div>
+        
+        <!-- Sol/Luna de Fantasía en el Horizonte -->
+        <div class="absolute top-20 right-1/4 w-40 h-40 rounded-full bg-gradient-to-tr from-purple-800 to-amber-500 blur-[40px] opacity-25"></div>
+        <div class="absolute top-24 right-1/4 w-32 h-32 rounded-full bg-amber-100 opacity-20 filter drop-shadow-[0_0_30px_rgba(251,191,36,0.3)]"></div>
 
-<!-- ================= SETUP SCREEN ================= -->
-<div id="setup-screen" class="fixed inset-0 z-30 flex items-center justify-center p-3 overflow-y-auto bg-black/60">
-  <div class="panel rounded-2xl p-6 md:p-8 w-full max-w-2xl my-6">
-    <h1 class="text-3xl md:text-4xl font-cinzel font-black text-center text-amber-300 glow-gold mb-1">⚔️ BATTLE CASTLE 3D</h1>
-    <p class="text-center text-amber-200/70 font-medieval mb-6">Cinco reinos. Un pasado simple. Una sola corona.</p>
-    <div id="player-inputs" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"></div>
-    <button id="edit-verbs-btn" type="button" class="w-full py-2.5 mb-3 rounded-xl bg-stone-800/80 border border-amber-700/40 text-amber-200 font-cinzel font-bold hover:bg-amber-900/40 transition">📝 Cambiar verbos</button>
-    <button id="start-btn" type="button" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-500 text-stone-900 font-cinzel font-black text-lg shadow-lg hover:brightness-110 active:scale-95 transition">🏰 COMENZAR LA GUERRA</button>
-  </div>
-</div>
+        <!-- Capa de Montañas traseras (Silueta 3D profunda) -->
+        <svg class="absolute bottom-[20%] left-0 w-full h-[40vh] opacity-20" viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path d="M0,224 L120,160 L240,240 L360,110 L480,260 L600,180 L720,250 L840,120 L960,240 L1080,150 L1200,210 L1320,90 L1440,240 L1440,320 L0,320 Z" fill="#2d164d"></path>
+        </svg>
 
-<!-- ================= VERB EDITOR MODAL ================= -->
-<div id="verb-modal" class="hidden fixed inset-0 z-40 items-center justify-center bg-black/70 p-3">
-  <div class="panel rounded-2xl p-5 w-full max-w-3xl fade-in max-h-[88vh] flex flex-col">
-    <h3 class="text-xl font-cinzel font-black text-amber-300 mb-1 text-center">📝 EDITAR VERBOS</h3>
-    <p class="text-amber-200/70 text-xs mb-3 text-center font-medieval">Pasado simple, infinitivo correcto y dos alternativas incorrectas.</p>
-    <div id="verb-rows" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
-    <div class="flex flex-wrap gap-2 mt-3">
-      <button id="verb-add-btn" type="button" class="px-4 py-2 rounded-lg bg-stone-800/80 border border-amber-700/40 text-amber-100 text-sm font-bold hover:bg-amber-900/40">➕ Añadir verbo</button>
-      <button id="verb-reset-btn" type="button" class="px-4 py-2 rounded-lg bg-stone-800/80 border border-amber-700/40 text-amber-100 text-sm font-bold hover:bg-amber-900/40">↩️ Restaurar por defecto</button>
-      <div class="flex-1"></div>
-      <button id="verb-cancel-btn" type="button" class="px-4 py-2 rounded-lg bg-stone-800/80 border border-stone-600/40 text-stone-300 text-sm font-bold hover:bg-stone-700/60">Cancelar</button>
-      <button id="verb-save-btn" type="button" class="px-5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-500 text-stone-900 text-sm font-cinzel font-black hover:brightness-110">💾 Guardar</button>
+        <!-- Capa de Montañas medias (Con sombreado de arista para volumen) -->
+        <svg class="absolute bottom-[10%] left-0 w-full h-[35vh] opacity-35" viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <!-- Lado de sombra de montañas -->
+            <path d="M0,240 L200,120 L450,220 L700,90 L1000,230 L1200,130 L1440,220 L1440,320 L0,320 Z" fill="#1b0b2e"></path>
+            <!-- Lado de luz de montañas (Crea el efecto 3D) -->
+            <path d="M200,120 L450,220 L700,90 L700,320 L200,320 Z" fill="#2d154c" opacity="0.3"></path>
+            <path d="M1200,130 L1440,220 L1440,320 L1200,320 Z" fill="#2d154c" opacity="0.3"></path>
+        </svg>
+
+        <!-- Capa de Bosque / Pinos Lejanos (Base del mapa) -->
+        <svg class="absolute bottom-0 left-0 w-full h-[20vh] opacity-45" viewBox="0 0 1440 150" preserveAspectRatio="none">
+            <path d="M0,120 Q120,90 240,110 Q360,130 480,105 Q600,80 720,110 Q840,140 960,115 Q1080,90 1200,110 Q1320,130 1440,120 L1440,150 L0,150 Z" fill="#080312"></path>
+            <!-- Pequeños Pinos triangulares en 3D -->
+            <polygon points="150,110 160,80 170,110" fill="#080312"></polygon>
+            <polygon points="320,120 335,85 350,120" fill="#0c051a"></polygon>
+            <polygon points="680,105 690,75 700,105" fill="#080312"></polygon>
+            <polygon points="900,125 915,90 930,125" fill="#0c051a"></polygon>
+            <polygon points="1150,108 1162,78 1174,108" fill="#080312"></polygon>
+        </svg>
     </div>
-    <div id="verb-error" class="text-red-400 text-xs mt-2 text-center"></div>
-  </div>
-</div>
 
-<!-- ================= HUD ================= -->
-<div id="hud" class="hidden">
-  <div class="fixed top-2 left-2 right-2 md:right-auto md:w-80 z-20 panel rounded-xl p-3 max-h-[40vh] md:max-h-[80vh] overflow-y-auto">
-    <h2 class="font-cinzel font-bold text-amber-300 text-sm mb-2 tracking-widest">👑 REINOS</h2>
-    <div id="ranking-list" class="space-y-2 text-xs"></div>
-  </div>
+    <!-- CANVAS PARA DISPAROS, PARTÍCULAS, EXPLOSIONES, CONFETI Y FUEGOS ARTIFICIALES -->
+    <canvas id="battle-canvas" class="fixed inset-0 w-full h-full pointer-events-none z-50"></canvas>
 
-  <div class="fixed top-2 right-2 z-20 panel rounded-xl p-3 w-44 text-center">
-    <div class="text-[10px] tracking-widest text-amber-300/80 mb-1">TURNO DE</div>
-    <div id="turn-name" class="font-cinzel font-black text-lg text-amber-100">-</div>
-    <div class="mt-2 mx-auto w-8 h-12 border-2 border-amber-400/60 rounded-sm relative overflow-hidden bg-black/40">
-      <div id="sand-fill" class="sand-fill absolute bottom-0 left-0 right-0 bg-amber-400" style="height:100%"></div>
+    <!-- ENCABEZADO DEL JUEGO CON CONTROLES -->
+    <header class="z-10 w-full bg-gradient-to-b from-stone-950 via-stone-950/75 to-transparent p-4 flex flex-wrap justify-between items-center gap-4 border-b border-purple-900/40">
+        <div class="flex items-center gap-3">
+            <span class="text-4xl filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.5)]">🏰</span>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-cinzel font-black tracking-widest text-amber-400 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">BATTLE CASTLE</h1>
+                <p class="text-[10px] md:text-xs tracking-wider text-purple-300 font-medieval uppercase">Guerra de Verbos Irregulares • Versión 3D Premium</p>
+            </div>
+        </div>
+
+        <!-- CONTROLES ADICIONALES -->
+        <div class="flex items-center gap-3 bg-stone-950/90 p-2 rounded-xl border border-purple-900/30 backdrop-blur-md shadow-2xl">
+            <!-- Música -->
+            <button id="music-btn" onclick="toggleMusic()" class="p-2 hover:bg-stone-800 rounded-lg text-lg" title="Música Medieval">
+                🎵 <span class="text-xs" id="music-status">OFF</span>
+            </button>
+            <div class="flex items-center gap-1">
+                <span class="text-xs text-stone-400">Vol:</span>
+                <input id="volume-slider" type="range" min="0" max="1" step="0.1" value="0.5" onchange="updateVolume(this.value)" class="w-16 h-1 bg-purple-950 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="h-5 w-[1px] bg-purple-900/50"></div>
+
+            <!-- Pantalla Completa -->
+            <button onclick="toggleFullscreen()" class="p-2 hover:bg-stone-800 rounded-lg text-sm" title="Pantalla Completa">
+                📺
+            </button>
+            
+            <!-- Reiniciar -->
+            <button onclick="triggerResetConfirm()" class="p-2 hover:bg-red-950 hover:text-red-300 rounded-lg text-sm text-red-400" title="Reiniciar Partida">
+                🔄
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENEDOR PRINCIPAL DEL JUEGO -->
+    <main id="game-container" class="z-10 flex-grow w-full max-w-7xl mx-auto p-4 flex flex-col justify-center">
+        
+        <!-- ================= PANTALLA 1: CONFIGURACIÓN ================= -->
+        <section id="screen-setup" class="page-transition w-full max-w-2xl mx-auto p-6 md:p-8 rounded-2xl shadow-2xl parchment text-stone-900">
+            <h2 class="text-3xl md:text-4xl font-decorative text-center text-amber-950 mb-1 font-bold">⚔️ ALZAD VUESTROS CASTILLOS 3D ⚔️</h2>
+            <p class="text-center text-sm text-amber-900 mb-6 font-medieval">Estableced los nombres de las 5 fortalezas reales para comenzar la batalla de la gramática inglesa.</p>
+            
+            <div class="space-y-4 mb-6" id="setup-castles-list">
+                <!-- Se autogeneran los inputs de reinos -->
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-between items-center bg-amber-950/10 p-4 rounded-xl border border-amber-900/30">
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" id="timer-toggle" checked class="w-5 h-5 accent-amber-800">
+                    <label for="timer-toggle" class="text-sm font-semibold text-amber-950 cursor-pointer font-medieval">
+                        Activar temporizador de asedio (15 Segundos) ⏱️
+                    </label>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="rpg-btn w-full mt-6 py-4 px-8 text-xl md:text-2xl font-medieval text-white font-bold rounded-xl tracking-wider flex justify-center items-center gap-3 shadow-2xl">
+                ⚔️ COMENZAR BATALLA ⚔️
+            </button>
+        </section>
+
+        <!-- ================= PANTALLA 2: JUEGO ACTIVO ================= -->
+        <section id="screen-game" class="page-transition hidden grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- ARENA CENTRAL (3 columnas) -->
+            <div class="lg:col-span-3 flex flex-col gap-6">
+                
+                <!-- Turno Actual y Acciones -->
+                <div id="turn-banner" class="bg-gradient-to-r from-stone-950/95 to-slate-900/90 border-2 border-amber-500 rounded-2xl p-5 shadow-2xl relative overflow-hidden backdrop-blur-md">
+                    <!-- Detalle dorado superior de la carta de turno -->
+                    <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500"></div>
+                    
+                    <div class="relative z-10 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="text-left">
+                            <span class="text-xs uppercase tracking-widest text-amber-400 font-bold block mb-1">🎮 Comandando Turno</span>
+                            <h3 id="active-player-name" class="text-2xl md:text-3xl font-medieval text-white tracking-wide">Castillo de Prueba</h3>
+                        </div>
+
+                        <!-- Botones de Acción Directa -->
+                        <div class="flex items-center gap-3">
+                            <button id="bonus-btn" onclick="openBonusChestSelection()" class="px-4 py-3.5 bg-gradient-to-r from-purple-800 to-indigo-950 hover:from-purple-700 hover:to-indigo-900 border-2 border-purple-400 text-white rounded-xl text-sm md:text-base font-medieval tracking-wider shadow-xl flex items-center gap-2 transition duration-200">
+                                🎁 COFRE DE RECURSOS
+                            </button>
+                            <button onclick="promptQuestionSelection()" class="rpg-btn px-6 py-4 text-base md:text-lg font-medieval text-white font-bold rounded-xl flex items-center gap-2 shadow-lg">
+                                📜 RESPONDER PREGUNTA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CAMPO DE BATALLA 3D REAL (Three.js: geometría, cámara orbitable, luces y sombras verdaderas) -->
+                <div id="battle-arena" class="relative rounded-2xl border-4 border-amber-700/50 overflow-hidden shadow-2xl" style="aspect-ratio: 16/10.5; min-height: 480px; background: radial-gradient(ellipse at 50% 45%, #14606e 0%, #0c4956 45%, #07303c 75%, #041d26 100%);">
+                    <!-- Marco interior dorado estilo pergamino de mapa -->
+                    <div class="absolute inset-2 rounded-xl border-2 border-amber-500/25 pointer-events-none z-30"></div>
+
+                    <!-- Lienzo WebGL donde Three.js renderiza la escena 3D -->
+                    <canvas id="three-canvas" class="absolute inset-0 w-full h-full"></canvas>
+
+                    <!-- Capa de etiquetas HTML ancladas a objetos 3D (nombre, HP, recursos) vía CSS2DRenderer -->
+                    <div id="css2d-container" class="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-20"></div>
+
+                    <!-- Indicador de carga del motor 3D -->
+                    <div id="three-loading" class="absolute inset-0 z-40 flex items-center justify-center bg-stone-950/70 text-amber-300 font-medieval text-sm gap-2">
+                        <span class="animate-spin">⚙️</span> Cargando motor 3D...
+                    </div>
+
+                    <!-- Brújula decorativa -->
+                    <div class="absolute top-3 left-3 z-20 opacity-70 pointer-events-none select-none">
+                        <svg viewBox="0 0 60 60" class="w-10 h-10 md:w-12 md:h-12 drop-shadow-lg">
+                            <circle cx="30" cy="30" r="27" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.7"/>
+                            <path d="M30 6 L34 30 L30 54 L26 30 Z" fill="#fbbf24" opacity="0.85"/>
+                            <path d="M6 30 L30 26 L54 30 L30 34 Z" fill="#fde68a" opacity="0.65"/>
+                            <text x="30" y="14" text-anchor="middle" fill="#fef3c7" font-size="8" font-weight="bold">N</text>
+                        </svg>
+                    </div>
+
+                    <!-- Pista de control de cámara -->
+                    <div class="absolute bottom-2 right-3 z-20 text-[9px] text-amber-200/60 font-medieval pointer-events-none select-none">
+                        🖱️ Arrastra para girar · Rueda para zoom
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL LATERAL DE INFORMACIÓN (1 columna) -->
+            <div class="bg-stone-950/95 border-2 border-purple-900/30 rounded-2xl p-4 shadow-2xl flex flex-col justify-between gap-6 backdrop-blur-md">
+                
+                <!-- Tabla de Clasificación / Estatus -->
+                <div>
+                    <h3 class="text-lg font-medieval text-amber-400 border-b border-purple-900/30 pb-2 mb-3 flex items-center justify-between">
+                        <span>📊 REINOS</span>
+                        <span class="text-xs text-stone-500">HP / RECURSOS</span>
+                    </h3>
+                    <div id="sidebar-leaderboard" class="space-y-3">
+                        <!-- Ránking dinámico -->
+                    </div>
+                </div>
+
+                <!-- Historial de Combate -->
+                <div class="flex-grow flex flex-col min-h-[140px]">
+                    <h3 class="text-base font-medieval text-stone-300 border-b border-purple-900/30 pb-2 mb-2">
+                        <span>📜 CRÓNICA DE GUERRA</span>
+                    </h3>
+                    <div id="battle-log" class="flex-grow overflow-y-auto max-h-[160px] text-[11px] space-y-2 text-stone-400 pr-1">
+                        <!-- Entradas dinámicas del log -->
+                    </div>
+                </div>
+
+                <!-- Cuadrícula de Preguntas Usadas -->
+                <div>
+                    <h4 class="text-xs font-medieval text-amber-500/80 uppercase tracking-widest mb-2">Pergaminos Utilizados</h4>
+                    <div id="questions-used-grid" class="grid grid-cols-6 gap-1 text-[10px] text-center">
+                        <!-- 1 al 30 de forma reducida -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PANTALLA 3: VICTORIA (overlay sobre la arena 3D) ================= -->
+        <section id="screen-victory" class="page-transition hidden fixed inset-0 z-40 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+            <div class="w-full max-w-xl bg-stone-950/95 p-8 rounded-3xl border-4 border-yellow-500 text-center shadow-2xl relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-b from-yellow-500/10 via-transparent to-transparent pointer-events-none"></div>
+
+                <div class="text-6xl mb-4 animate-bounce">👑</div>
+                <h2 class="text-4xl font-decorative text-yellow-400 mb-1 font-black tracking-widest">VICTORIA ABSOLUTA</h2>
+                <p class="text-stone-400 font-medieval uppercase tracking-wider mb-6">El soberano supremo es:</p>
+
+                <div class="bg-gradient-to-r from-amber-950/60 via-amber-900/40 to-amber-950/60 p-5 rounded-2xl border border-yellow-500/30 mb-2">
+                    <h3 id="victory-castle-name" class="text-3xl font-medieval text-yellow-300 tracking-wide font-bold">Castillo Ganador</h3>
+                    <p class="text-xs text-amber-400 mt-2 font-medieval">¡Todos los reinos se rinden ante su gloriosa sabiduría!</p>
+                </div>
+                <p class="text-[10px] text-stone-500 font-medieval mb-6">👁️ Su majestad celebra en vivo dentro del campo de batalla 3D</p>
+
+                <button onclick="triggerResetGame()" class="rpg-btn w-full py-4 px-8 text-xl font-medieval text-white font-bold rounded-xl tracking-wider flex justify-center items-center gap-2 shadow-lg">
+                    🏆 NUEVA CAMPAÑA 🏆
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="z-10 w-full text-center p-3 bg-stone-950/60 text-stone-500 text-[10px] font-medieval border-t border-purple-950/40 backdrop-blur-md">
+        <p>Battle Castle • Desarrollado con HTML5, Canvas y Web Audio API • 100% Sin Servidor</p>
+    </footer>
+
+    <!-- ================= MODAL: SELECCIÓN DE NÚMERO DE PREGUNTA ================= -->
+    <div id="modal-pergaminos" class="fixed inset-0 bg-black/80 z-50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-stone-950/95 border-4 border-amber-800 rounded-3xl p-5 max-w-2xl w-full parchment text-stone-900 relative shadow-2xl">
+            <button onclick="closeModal('modal-pergaminos')" class="absolute top-4 right-4 text-stone-700 hover:text-stone-900 text-2xl font-bold">✕</button>
+            
+            <h3 class="text-2xl font-medieval text-center text-amber-950 mb-1 font-bold">📜 SELECCIONAD UN PERGAMINO</h3>
+            <p class="text-center text-xs text-amber-900 mb-5 font-medieval">Cada pergamino esconde un verbo en Pasado Simple único. Elegid uno.</p>
+
+            <div class="grid grid-cols-5 sm:grid-cols-6 gap-2" id="pergaminos-grid-selection">
+                <!-- Generado por JavaScript -->
+            </div>
+        </div>
     </div>
-    <div id="timer-num" class="text-amber-200 text-xs mt-1">15s</div>
-  </div>
-
-  <div class="fixed bottom-2 left-2 right-2 md:right-auto md:w-80 z-20 panel rounded-xl p-3 max-h-[26vh] overflow-y-auto">
-    <h2 class="font-cinzel font-bold text-amber-300 text-sm mb-1 tracking-widest">📜 BITÁCORA</h2>
-    <div id="log-list" class="space-y-1 text-[11px] text-amber-100/90"></div>
-  </div>
-
-  <button id="camera-reset" type="button" class="fixed bottom-2 right-2 z-20 panel rounded-xl px-3 py-2 text-xs font-cinzel hover:bg-amber-900/40">🧭 Centrar cámara</button>
-</div>
-
-<!-- ================= QUESTION MODAL ================= -->
-<div id="question-modal" class="hidden fixed inset-0 z-40 items-center justify-center bg-black/70 p-3">
-  <div class="panel rounded-2xl p-6 w-full max-w-md text-center fade-in">
-    <div class="text-amber-300/70 text-xs tracking-widest mb-1" id="q-player-label">JUGADOR</div>
-    <div class="text-stone-300 text-sm mb-2 font-medieval">¿Cuál es el infinitivo de este verbo en pasado simple?</div>
-    <h3 id="question-verb" class="text-4xl md:text-5xl font-cinzel font-black text-amber-200 glow-gold mb-5">WENT</h3>
-    <div id="q-options" class="grid grid-cols-1 gap-2"></div>
-    <div id="q-feedback" class="mt-3 text-sm font-bold"></div>
-  </div>
-</div>
-
-<!-- ================= TARGET SELECT BANNER ================= -->
-<div id="target-banner" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 z-20 panel rounded-xl px-5 py-2 text-center">
-  <span class="text-amber-200 font-cinzel font-bold text-sm">🎯 ¡Elige un castillo enemigo para atacar!</span>
-</div>
-
-<!-- ================= CHEST MODAL ================= -->
-<div id="chest-modal" class="hidden fixed inset-0 z-40 items-center justify-center bg-black/70 p-3">
-  <div class="panel rounded-2xl p-5 w-full max-w-3xl text-center fade-in">
-    <h3 class="text-2xl font-cinzel font-black text-amber-300 mb-1">🎁 COFRES DEL REINO</h3>
-    <p class="text-amber-200/70 text-xs mb-4 font-medieval">Elige un cofre, valiente conquistador...</p>
-    <div id="chest-grid" class="grid grid-cols-5 gap-2 md:gap-3"></div>
-    <div id="chest-result" class="mt-4 text-lg font-bold min-h-[2rem]"></div>
-    <button id="chest-close" type="button" class="hidden mt-3 px-5 py-2 rounded-lg bg-amber-600 text-stone-900 font-bold">Continuar</button>
-  </div>
-</div>
-
-<!-- ================= WIN MODAL ================= -->
-<div id="win-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/85 p-3">
-  <div class="panel rounded-2xl p-8 text-center max-w-md fade-in">
-    <div class="text-6xl mb-3">👑</div>
-    <h2 class="text-3xl font-cinzel font-black text-amber-300 mb-2" id="win-title">¡VICTORIA!</h2>
-    <p class="text-amber-100 font-medieval mb-5" id="win-sub"></p>
-    <button onclick="location.reload()" type="button" class="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-500 text-stone-900 font-cinzel font-black">🔄 NUEVA GUERRA</button>
-  </div>
-</div>
-
-<script>
-(function(){
-"use strict";
-
-/* ===========================================================
-   A. VERB BANK
-=========================================================== */
-const DEFAULT_VERB_BANK = [
-  { past:"ATE", correct:"EAT", options:["EAT","DRINK","WRITE"] },
-  { past:"SAW", correct:"SEE", options:["SEE","SAY","SING"] },
-  { past:"WENT", correct:"GO", options:["GO","WANT","WALK"] },
-  { past:"DRANK", correct:"DRINK", options:["DRINK","DRAW","DRIVE"] },
-  { past:"BOUGHT", correct:"BUY", options:["BUY","BRING","BUILD"] },
-  { past:"MADE", correct:"MAKE", options:["MAKE","MEET","MEAN"] },
-  { past:"TOOK", correct:"TAKE", options:["TAKE","TALK","TELL"] },
-  { past:"CAME", correct:"COME", options:["COME","CALL","CATCH"] },
-  { past:"WROTE", correct:"WRITE", options:["WRITE","WORK","WIN"] },
-  { past:"SANG", correct:"SING", options:["SING","SIT","SLEEP"] },
-  { past:"SPOKE", correct:"SPEAK", options:["SPEAK","SPEND","STAND"] },
-  { past:"RAN", correct:"RUN", options:["RUN","READ","RIDE"] },
-  { past:"SLEPT", correct:"SLEEP", options:["SLEEP","SELL","SEND"] },
-  { past:"SWAM", correct:"SWIM", options:["SWIM","SWEAR","SWEEP"] },
-  { past:"HAD", correct:"HAVE", options:["HAVE","HEAR","HIDE"] },
-  { past:"DID", correct:"DO", options:["DO","DIG","DRAW"] },
-  { past:"GAVE", correct:"GIVE", options:["GIVE","GROW","GET"] },
-  { past:"THOUGHT", correct:"THINK", options:["THINK","THROW","TEACH"] },
-  { past:"FELL", correct:"FALL", options:["FALL","FEEL","FIND"] },
-  { past:"FLEW", correct:"FLY", options:["FLY","FLOW","FORGET"] },
-  { past:"HEARD", correct:"HEAR", options:["HEAR","HELP","HURT"] },
-  { past:"KEPT", correct:"KEEP", options:["KEEP","KNOW","KILL"] },
-  { past:"LEFT", correct:"LEAVE", options:["LEAVE","LOSE","LAUGH"] },
-  { past:"MET", correct:"MEET", options:["MEET","MIND","MOVE"] },
-  { past:"PAID", correct:"PAY", options:["PAY","PLAY","PUT"] },
-  { past:"SOLD", correct:"SELL", options:["SELL","SEND","SHAKE"] },
-  { past:"TOLD", correct:"TELL", options:["TELL","THINK","TEAR"] },
-  { past:"STOOD", correct:"STAND", options:["STAND","SPEAK","STEAL"] },
-  { past:"WON", correct:"WIN", options:["WIN","WRITE","WEAR"] },
-  { past:"BROKE", correct:"BREAK", options:["BREAK","BRING","BUILD"] }
-];
-
-let VERB_BANK = DEFAULT_VERB_BANK.map(q=>({past:q.past, correct:q.correct, options:q.options.slice()}));
-
-/* ===========================================================
-   B. BIOMES / KINGDOMS CONFIG (matches reference layout: 4 corners + center)
-=========================================================== */
-const KINGDOMS = [
-  { key:"forest",  name:"Valle Frondoso", color:0x1f8b4d, accent:0x2ecc71, pos:[-34,0,-34] },
-  { key:"desert",  name:"Desierto Dorado", color:0xd4a72c, accent:0xf1c40f, pos:[34,0,-34] },
-  { key:"volcano", name:"Tierras Volcánicas", color:0x8b1a1a, accent:0xe74c3c, pos:[34,0,34] },
-  { key:"ice",     name:"Costa Helada", color:0x4ea0c9, accent:0xaee9ff, pos:[-34,0,34] },
-  { key:"mystic",  name:"Páramo Místico", color:0x6c3fa3, accent:0xb98cf2, pos:[0,0,0] }
-];
-
-/* ===========================================================
-   C. GAME STATE
-=========================================================== */
-let gameState = {
-  players: [],
-  turnIndex: 0,
-  phase: "setup",
-  currentQuestion: null,
-  selectedAttacker: null,
-  timer: null,
-  timeLeft: 15,
-  usedQuestions: []
-};
-
-function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-
-/* ===========================================================
-   D. SETUP SCREEN
-=========================================================== */
-const playerInputsEl = document.getElementById("player-inputs");
-KINGDOMS.forEach((k,i)=>{
-  const wrap = document.createElement("div");
-  wrap.className = "flex items-center gap-2 bg-black/30 rounded-lg px-3 py-2 border border-amber-900/40";
-  wrap.innerHTML = `<span class="text-xl">${["🌳","🏜️","🌋","❄️","🔮"][i]}</span>
-    <input type="text" inputmode="text" autocomplete="off" maxlength="14" data-idx="${i}"
-      class="player-name-input bg-transparent flex-1 outline-none text-amber-50 placeholder-amber-200/40 font-medieval text-base"
-      placeholder="${k.name}" />`;
-  playerInputsEl.appendChild(wrap);
-});
-
-document.getElementById("start-btn").addEventListener("click", startGame);
-
-/* ---- Verb editor ---- */
-const verbModal = document.getElementById("verb-modal");
-const verbRowsEl = document.getElementById("verb-rows");
-const verbErrorEl = document.getElementById("verb-error");
-
-function makeVerbRow(q){
-  q = q || {past:"", correct:"", options:["","",""]};
-  const row = document.createElement("div");
-  row.className = "flex flex-wrap items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 border border-amber-900/30";
-  row.innerHTML = `
-    <input type="text" placeholder="Pasado (ej. WENT)" class="v-past bg-stone-900/70 rounded px-2 py-1 text-amber-50 text-xs w-28 outline-none border border-amber-900/40" value="${q.past}">
-    <input type="text" placeholder="Correcto (ej. GO)" class="v-correct bg-stone-900/70 rounded px-2 py-1 text-emerald-300 text-xs w-28 outline-none border border-amber-900/40" value="${q.correct}">
-    <input type="text" placeholder="Alternativa 2" class="v-opt2 bg-stone-900/70 rounded px-2 py-1 text-amber-100 text-xs w-28 outline-none border border-amber-900/40" value="${(q.options.find(o=>o!==q.correct)||"")}">
-    <input type="text" placeholder="Alternativa 3" class="v-opt3 bg-stone-900/70 rounded px-2 py-1 text-amber-100 text-xs w-28 outline-none border border-amber-900/40" value="${(q.options.filter(o=>o!==q.correct)[1]||"")}">
-    <button type="button" class="v-del ml-auto px-2 py-1 rounded text-red-300 hover:bg-red-900/30 text-xs">🗑️</button>
-  `;
-  row.querySelector(".v-del").addEventListener("click", ()=> row.remove());
-  return row;
-}
-
-function renderVerbRows(bank){
-  verbRowsEl.innerHTML = "";
-  bank.forEach(q=> verbRowsEl.appendChild(makeVerbRow(q)));
-}
-
-document.getElementById("edit-verbs-btn").addEventListener("click", ()=>{
-  verbErrorEl.textContent = "";
-  renderVerbRows(VERB_BANK);
-  verbModal.classList.remove("hidden"); verbModal.classList.add("flex");
-});
-
-document.getElementById("verb-cancel-btn").addEventListener("click", ()=>{
-  verbModal.classList.add("hidden"); verbModal.classList.remove("flex");
-});
-
-document.getElementById("verb-add-btn").addEventListener("click", ()=>{
-  verbRowsEl.appendChild(makeVerbRow());
-  verbRowsEl.scrollTop = verbRowsEl.scrollHeight;
-});
-
-document.getElementById("verb-reset-btn").addEventListener("click", ()=>{
-  renderVerbRows(DEFAULT_VERB_BANK);
-});
-
-document.getElementById("verb-save-btn").addEventListener("click", ()=>{
-  const rows = Array.from(verbRowsEl.children);
-  const parsed = [];
-  for(const row of rows){
-    const past = row.querySelector(".v-past").value.trim().toUpperCase();
-    const correct = row.querySelector(".v-correct").value.trim().toUpperCase();
-    const opt2 = row.querySelector(".v-opt2").value.trim().toUpperCase();
-    const opt3 = row.querySelector(".v-opt3").value.trim().toUpperCase();
-    if(!past && !correct && !opt2 && !opt3) continue; // skip fully empty rows
-    if(!past || !correct || !opt2 || !opt3){
-      verbErrorEl.textContent = "Completa los 4 campos de cada verbo (o elimina la fila vacía).";
-      return;
-    }
-    parsed.push({past, correct, options:[correct, opt2, opt3]});
-  }
-  if(parsed.length < 3){
-    verbErrorEl.textContent = "Necesitas al menos 3 verbos para jugar.";
-    return;
-  }
-  VERB_BANK = parsed;
-  gameState.usedQuestions = [];
-  verbErrorEl.textContent = "";
-  verbModal.classList.add("hidden"); verbModal.classList.remove("flex");
-});
-
-function startGame(){
-  const inputs = document.querySelectorAll(".player-name-input");
-  gameState.players = KINGDOMS.map((k,i)=>{
-    const v = inputs[i].value.trim();
-    return {
-      key:k.key, name: v || k.name, kingdom:k.name, color:k.color, accent:k.accent,
-      hp:5, alive:true, shields:0, hammers:0, bombs:0
-    };
-  });
-  document.getElementById("setup-screen").classList.add("hidden");
-  document.getElementById("hud").classList.remove("hidden");
-  initThree();
-  buildWorld();
-  renderRanking();
-  startAudio();
-  nextTurn();
-}
-
-/* ===========================================================
-   E. THREE.JS SETUP
-=========================================================== */
-let scene, camera, renderer, controls, raycaster, clock;
-let castleGroups = {}; // key -> {group, parts...}
-let kingFloats = [];
-let flameSystems = {};
-let smokeSystems = {};
-let shakeTime = 0;
-const mouse = new THREE.Vector2();
-
-function initThree(){
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a1622);
-  scene.fog = new THREE.Fog(0x0a1622, 60, 220);
-
-  camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 60, 95);
-
-  renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  renderer.shadowMap.enabled = true;
-  document.getElementById("canvas-root").appendChild(renderer.domElement);
-
-  controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.minDistance = 35;
-  controls.maxDistance = 140;
-  controls.maxPolarAngle = Math.PI*0.47;
-  controls.target.set(0,0,0);
-
-  raycaster = new THREE.Raycaster();
-  clock = new THREE.Clock();
-
-  const hemi = new THREE.HemisphereLight(0xbfd8ff, 0x223018, 0.9);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff1d0, 1.1);
-  sun.position.set(60,90,40);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048,2048);
-  sun.shadow.camera.left=-80; sun.shadow.camera.right=80;
-  sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80;
-  scene.add(sun);
-
-  window.addEventListener("resize", onResize);
-  renderer.domElement.addEventListener("click", onCanvasClick);
-  renderer.domElement.addEventListener("pointermove", onPointerMove);
-  document.getElementById("camera-reset").addEventListener("click", ()=>{
-    camera.position.set(0,60,95); controls.target.set(0,0,0);
-  });
-
-  animate();
-}
-
-function onResize(){
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-/* ===========================================================
-   F. WORLD BUILD
-=========================================================== */
-function buildWorld(){
-  buildOcean();
-  buildIslandTerrain();
-  KINGDOMS.forEach(k=> buildCastle(k));
-  buildMountains();
-  buildSiegeLines();
-  buildCompass();
-}
-
-function buildOcean(){
-  const geo = new THREE.PlaneGeometry(400,400,1,1);
-  const mat = new THREE.MeshPhongMaterial({color:0x115577, shininess:80, transparent:true, opacity:0.92});
-  const ocean = new THREE.Mesh(geo, mat);
-  ocean.rotation.x = -Math.PI/2;
-  ocean.position.y = -1.4;
-  ocean.receiveShadow = true;
-  scene.add(ocean);
-  ocean.userData.isOcean = true;
-  window.__ocean = ocean;
-}
-
-function biomeColorAt(x,z){
-  let best=null, bd=Infinity;
-  KINGDOMS.forEach(k=>{
-    const dx=x-k.pos[0], dz=z-k.pos[2];
-    const d = dx*dx+dz*dz;
-    if(d<bd){bd=d; best=k;}
-  });
-  return best.color;
-}
-
-function buildIslandTerrain(){
-  const size = 90, seg = 60;
-  const geo = new THREE.PlaneGeometry(size, size, seg, seg);
-  geo.rotateX(-Math.PI/2);
-  const pos = geo.attributes.position;
-  const colors = [];
-  const color = new THREE.Color();
-  for(let i=0;i<pos.count;i++){
-    const x = pos.getX(i), z = pos.getZ(i);
-    const distCenter = Math.sqrt(x*x+z*z);
-    const edge = THREE.MathUtils.clamp(1 - distCenter/ (size*0.62), 0, 1);
-    let h = Math.sin(x*0.18)*Math.cos(z*0.18)*0.8 + Math.sin(x*0.06+z*0.06)*1.6;
-    h *= edge;
-    h -= (1-edge)*3.2; // shoreline drop
-    pos.setY(i, h);
-    color.setHex(biomeColorAt(x,z));
-    const shade = 0.85 + Math.random()*0.25;
-    colors.push(color.r*shade, color.g*shade, color.b*shade);
-  }
-  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors,3));
-  geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({vertexColors:true, roughness:0.95, flatShading:true});
-  const land = new THREE.Mesh(geo, mat);
-  land.receiveShadow = true;
-  land.castShadow = false;
-  scene.add(land);
-}
-
-function buildMountains(){
-  const coords = [[0,8],[-14,-2],[14,-2],[0,-16],[-8,16],[8,16],[-20,20],[20,20],[-20,-20],[20,-20]];
-  coords.forEach(([x,z])=>{
-    const h = 6 + Math.random()*7;
-    const geo = new THREE.ConeGeometry(3+Math.random()*2, h, 6);
-    const mat = new THREE.MeshStandardMaterial({color:0x5b5044, flatShading:true, roughness:1});
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, h/2 - 1, z);
-    m.rotation.y = Math.random()*Math.PI;
-    m.castShadow = true; m.receiveShadow = true;
-    scene.add(m);
-  });
-}
-
-function buildCompass(){
-  const g = new THREE.Group();
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(4,0.25,8,24), new THREE.MeshStandardMaterial({color:0xd4af37, metalness:0.6, roughness:0.3}));
-  ring.rotation.x = Math.PI/2;
-  g.add(ring);
-  const needle = new THREE.Mesh(new THREE.ConeGeometry(0.5,3,4), new THREE.MeshStandardMaterial({color:0xff3b3b}));
-  needle.rotation.x = Math.PI/2; needle.position.y=0.3;
-  g.add(needle);
-  g.position.set(-58, 0.5, -58);
-  scene.add(g);
-  window.__compass = g;
-}
-
-function buildSiegeLines(){
-  const positions = KINGDOMS.map(k=> new THREE.Vector3(k.pos[0],4,k.pos[2]));
-  const lineGroup = new THREE.Group();
-  for(let i=0;i<positions.length;i++){
-    for(let j=i+1;j<positions.length;j++){
-      const a = positions[i], b = positions[j];
-      const mid = a.clone().lerp(b,0.5); mid.y += 6;
-      const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
-      const pts = curve.getPoints(24);
-      const geo = new THREE.BufferGeometry().setFromPoints(pts);
-      const mat = new THREE.LineDashedMaterial({color:0xffd766, dashSize:1.2, gapSize:0.8, transparent:true, opacity:0.55});
-      const line = new THREE.Line(geo, mat);
-      line.computeLineDistances();
-      lineGroup.add(line);
-    }
-  }
-  scene.add(lineGroup);
-  window.__siegeLines = lineGroup;
-}
-
-/* ===========================================================
-   G. CASTLE BUILDER
-=========================================================== */
-function buildCastle(k){
-  const group = new THREE.Group();
-  group.position.set(k.pos[0], 0, k.pos[2]);
-
-  // base platform
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(9,10,2.2,16),
-    new THREE.MeshStandardMaterial({color:0x807260, roughness:1, flatShading:true})
-  );
-  base.position.y = 1.1;
-  base.receiveShadow = true; base.castShadow = true;
-  group.add(base);
-
-  const wallMat = new THREE.MeshStandardMaterial({color:0xb9ada0, roughness:0.9, flatShading:true});
-  const roofMat = new THREE.MeshStandardMaterial({color:0xc0392b, roughness:0.8, flatShading:true});
-
-  // central wall
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(8,5,3), wallMat);
-  wall.position.y = 2.2+2.5;
-  wall.castShadow = true; wall.receiveShadow = true;
-  group.add(wall);
-
-  // crenellations
-  for(let i=-3;i<=3;i+=2){
-    const c = new THREE.Mesh(new THREE.BoxGeometry(0.9,1,0.9), wallMat);
-    c.position.set(i, 2.2+5.5, 0);
-    c.castShadow = true;
-    wall.userData.crenels = wall.userData.crenels||[];
-    group.add(c);
-  }
-
-  // gate
-  const gate = new THREE.Mesh(new THREE.BoxGeometry(2.2,3,0.6), new THREE.MeshStandardMaterial({color:0x5b3a1f, roughness:1}));
-  gate.position.set(0, 2.2+1.6, 1.6);
-  group.add(gate);
-
-  // towers
-  const towers = [];
-  [-5,5].forEach((tx,idx)=>{
-    const tGroup = new THREE.Group();
-    const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.8,2,8,10), wallMat);
-    tower.position.y = 2.2+4;
-    tower.castShadow = true; tower.receiveShadow = true;
-    tGroup.add(tower);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(2.3,3.4,10), roofMat);
-    roof.position.y = 2.2+8+1.4;
-    roof.castShadow = true;
-    tGroup.add(roof);
-    tGroup.position.set(tx,0,0);
-    tGroup.userData.collapsed = false;
-    group.add(tGroup);
-    towers.push(tGroup);
-  });
-
-  // standard / flag
-  const poleMat = new THREE.MeshStandardMaterial({color:0x3a2a16});
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,4,6), poleMat);
-  pole.position.set(0, 2.2+5+2, 0);
-  group.add(pole);
-  const flagGeo = new THREE.PlaneGeometry(2,1.3,6,4);
-  const flagMat = new THREE.MeshStandardMaterial({color:k.accent, side:THREE.DoubleSide, flatShading:true});
-  const flag = new THREE.Mesh(flagGeo, flagMat);
-  flag.position.set(1, 2.2+6.6, 0);
-  group.add(flag);
-
-  // king floating above main tower
-  const kingGroup = new THREE.Group();
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.55,8,8), new THREE.MeshStandardMaterial({color:0xffd9a0}));
-  head.position.y = 1.4;
-  kingGroup.add(head);
-  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.5,0.4,8), new THREE.MeshStandardMaterial({color:0xffd700, metalness:0.7, roughness:0.2}));
-  crown.position.y = 1.95;
-  kingGroup.add(crown);
-  const cape = new THREE.Mesh(new THREE.ConeGeometry(0.8,1.8,8), new THREE.MeshStandardMaterial({color:k.accent, flatShading:true}));
-  cape.position.y = 0.6;
-  kingGroup.add(cape);
-  kingGroup.position.set(0, 2.2+5+5.5, 0);
-  group.add(kingGroup);
-  kingFloats.push({mesh:kingGroup, baseY:kingGroup.position.y, phase:Math.random()*Math.PI*2});
-
-  // damage layers (hidden by default)
-  const cracks = new THREE.Mesh(new THREE.PlaneGeometry(7,4), new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.35, visible:false}));
-  cracks.position.set(0, 2.2+2.5, 1.51);
-  group.add(cracks);
-
-  const gateCollapsed = new THREE.Mesh(new THREE.BoxGeometry(2.2,1,0.6), new THREE.MeshStandardMaterial({color:0x2b1c0e}));
-  gateCollapsed.position.set(0, 2.2+0.5, 1.6);
-  gateCollapsed.visible = false;
-  group.add(gateCollapsed);
-
-  scene.add(group);
-
-  // pulse ring (for targeting hover)
-  const pulse = new THREE.Mesh(new THREE.RingGeometry(9.5,11,32), new THREE.MeshBasicMaterial({color:0xff3030, transparent:true, opacity:0, side:THREE.DoubleSide}));
-  pulse.rotation.x = -Math.PI/2;
-  pulse.position.y = 0.05;
-  group.add(pulse);
-
-  castleGroups[k.key] = {group, base, wall, gate, gateCollapsed, towers, flag, cracks, pulse, kingGroup};
-
-  flameSystems[k.key] = buildParticleSystem(0xff5500, 30, group);
-  flameSystems[k.key].points.visible = false;
-  smokeSystems[k.key] = buildParticleSystem(0x222222, 40, group);
-  smokeSystems[k.key].points.visible = false;
-}
-
-function buildParticleSystem(colorHex, count, parent){
-  const geo = new THREE.BufferGeometry();
-  const positions = new Float32Array(count*3);
-  const velocities = [];
-  for(let i=0;i<count;i++){
-    positions[i*3]= (Math.random()-0.5)*4;
-    positions[i*3+1]= Math.random()*2;
-    positions[i*3+2]= (Math.random()-0.5)*4;
-    velocities.push({vy: 0.5+Math.random()*1.5, t: Math.random()*10});
-  }
-  geo.setAttribute("position", new THREE.BufferAttribute(positions,3));
-  const mat = new THREE.PointsMaterial({color:colorHex, size:0.5, transparent:true, opacity:0.85});
-  const points = new THREE.Points(geo, mat);
-  points.position.y = 4;
-  parent.add(points);
-  return {points, velocities, count};
-}
-
-function updateParticleSystem(sys, dt){
-  if(!sys.points.visible) return;
-  const pos = sys.points.geometry.attributes.position;
-  for(let i=0;i<sys.count;i++){
-    let y = pos.getY(i) + sys.velocities[i].vy*dt;
-    if(y>6){ y = 0; }
-    pos.setY(i,y);
-  }
-  pos.needsUpdate = true;
-}
-
-/* ===========================================================
-   H. DAMAGE VISUALS
-=========================================================== */
-function applyDamageVisuals(key, hp){
-  const c = castleGroups[key];
-  if(!c) return;
-  c.cracks.material.visible = hp<=4 && hp>0;
-
-  if(hp<=3 && hp>0 && !c.towers[1].userData.collapsed){
-    c.towers[1].userData.collapsed = true;
-    c.towers[1].rotation.z = -0.6;
-    c.towers[1].position.y = -0.8;
-  }
-  flameSystems[key].points.visible = hp<=2 && hp>0;
-  smokeSystems[key].points.visible = hp<=1 && hp>0;
-  if(hp<=1 && hp>0){ c.gate.visible=false; c.gateCollapsed.visible=true; }
-
-  if(hp<=0){
-    destroyCastle(key);
-  }
-}
-
-function destroyCastle(key){
-  const c = castleGroups[key];
-  if(!c || c.group.userData.destroyed) return;
-  c.group.userData.destroyed = true;
-  spawnExplosionDebris(c.group.position.clone().add(new THREE.Vector3(0,3,0)));
-  let t=0;
-  const fall = ()=>{
-    t+=0.03;
-    c.group.position.y -= 0.12;
-    c.group.scale.multiplyScalar(0.965);
-    c.group.rotation.y += 0.05;
-    if(t<1.2) requestAnimationFrame(fall);
-    else c.group.visible = false;
-  };
-  fall();
-}
-
-function spawnExplosionDebris(origin){
-  const debris = [];
-  for(let i=0;i<18;i++){
-    const geo = new THREE.DodecahedronGeometry(0.4+Math.random()*0.5,0);
-    const mat = new THREE.MeshStandardMaterial({color:0x6b5d4f, flatShading:true});
-    const m = new THREE.Mesh(geo, mat);
-    m.position.copy(origin);
-    scene.add(m);
-    const vel = new THREE.Vector3((Math.random()-0.5)*8, Math.random()*7+3, (Math.random()-0.5)*8);
-    debris.push({m, vel});
-  }
-  let t=0;
-  const step = ()=>{
-    t+=0.02;
-    debris.forEach(d=>{
-      d.vel.y -= 0.25;
-      d.m.position.addScaledVector(d.vel,0.05);
-      d.m.rotation.x+=0.1; d.m.rotation.y+=0.1;
-      if(d.m.position.y < -1.4){ scene.remove(d.m); }
-    });
-    if(t<3) requestAnimationFrame(step);
-    else debris.forEach(d=>scene.remove(d.m));
-  };
-  step();
-  triggerShake(1.0);
-}
-
-/* ===========================================================
-   I. PROJECTILE / CATAPULT
-=========================================================== */
-function fireProjectile(fromKey, toKey, onImpact){
-  const from = castleGroups[fromKey].group.position.clone().add(new THREE.Vector3(0,6,0));
-  const to = castleGroups[toKey].group.position.clone().add(new THREE.Vector3(0,4,0));
-
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.9,10,10), new THREE.MeshStandardMaterial({color:0xff4500, emissive:0xff2200, emissiveIntensity:0.7}));
-  ball.position.copy(from);
-  scene.add(ball);
-  const fire = buildParticleSystem(0xffaa00, 14, ball);
-  fire.points.position.set(0,0,0);
-  fire.points.visible = true;
-
-  const dist = from.distanceTo(to);
-  const duration = THREE.MathUtils.clamp(dist*22, 700, 1800);
-  const startTime = performance.now();
-  const peak = Math.max(8, dist*0.28);
-
-  function step(now){
-    const t = Math.min(1, (now-startTime)/duration);
-    const pos = from.clone().lerp(to, t);
-    pos.y += Math.sin(Math.PI*t) * peak;
-    ball.position.copy(pos);
-    const fp = fire.points.geometry.attributes.position;
-    for(let i=0;i<fire.count;i++){
-      fp.setXYZ(i,(Math.random()-0.5)*0.8,(Math.random()-0.5)*0.8,(Math.random()-0.5)*0.8);
-    }
-    fp.needsUpdate = true;
-    if(t<1){ requestAnimationFrame(step); }
-    else{
-      scene.remove(ball);
-      spawnImpactShockwave(to);
-      triggerShake(0.6);
-      if(onImpact) onImpact();
-    }
-  }
-  requestAnimationFrame(step);
-}
-
-function spawnImpactShockwave(pos){
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.2,0.6,24), new THREE.MeshBasicMaterial({color:0xffaa33, transparent:true, opacity:0.9, side:THREE.DoubleSide}));
-  ring.rotation.x = -Math.PI/2;
-  ring.position.copy(pos); ring.position.y = 0.3;
-  scene.add(ring);
-  let t=0;
-  const step=()=>{
-    t+=0.04;
-    ring.scale.setScalar(1+t*14);
-    ring.material.opacity = Math.max(0,0.9-t*1.2);
-    if(t<1) requestAnimationFrame(step);
-    else scene.remove(ring);
-  };
-  step();
-
-  for(let i=0;i<14;i++){
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.25,6,6), new THREE.MeshBasicMaterial({color:0xffcc55}));
-    m.position.copy(pos);
-    scene.add(m);
-    const vel = new THREE.Vector3((Math.random()-0.5)*6, Math.random()*5+2, (Math.random()-0.5)*6);
-    let tt=0;
-    const pstep=()=>{
-      tt+=0.02;
-      vel.y -= 0.2;
-      m.position.addScaledVector(vel,0.05);
-      m.material.opacity = Math.max(0,1-tt);
-      if(tt<1.2) requestAnimationFrame(pstep);
-      else scene.remove(m);
-    };
-    pstep();
-  }
-}
-
-function triggerShake(intensity){ shakeTime = intensity; }
-
-/* ===========================================================
-   J. RAYCAST TARGET SELECTION
-=========================================================== */
-function onPointerMove(e){
-  mouse.x = (e.clientX/window.innerWidth)*2-1;
-  mouse.y = -(e.clientY/window.innerHeight)*2+1;
-  if(gameState.phase !== "targeting") return;
-  raycaster.setFromCamera(mouse, camera);
-  Object.entries(castleGroups).forEach(([key,c])=>{
-    const targetable = isTargetable(key);
-    c.pulse.material.opacity = 0;
-  });
-  const hits = raycastCastles();
-  if(hits.length){
-    const key = hits[0];
-    if(isTargetable(key)){
-      castleGroups[key].pulse.material.opacity = 0.6 + Math.sin(performance.now()*0.01)*0.3;
-      renderer.domElement.style.cursor = "pointer";
-    }
-  } else {
-    renderer.domElement.style.cursor = "default";
-  }
-}
-
-function raycastCastles(){
-  raycaster.setFromCamera(mouse, camera);
-  const found = [];
-  Object.entries(castleGroups).forEach(([key,c])=>{
-    if(c.group.userData.destroyed) return;
-    const intersects = raycaster.intersectObject(c.group, true);
-    if(intersects.length) found.push({key, dist:intersects[0].distance});
-  });
-  found.sort((a,b)=>a.dist-b.dist);
-  return found.map(f=>f.key);
-}
-
-function isTargetable(key){
-  if(gameState.phase !== "targeting") return false;
-  const p = gameState.players.find(pl=>pl.key===key);
-  if(!p || !p.alive) return false;
-  if(key === gameState.selectedAttacker) return false;
-  return true;
-}
-
-function onCanvasClick(){
-  if(gameState.phase !== "targeting") return;
-  const hits = raycastCastles();
-  if(!hits.length) return;
-  const key = hits[0];
-  if(!isTargetable(key)) return;
-  resolveAttack(gameState.selectedAttacker, key);
-}
-
-/* ===========================================================
-   K. ANIMATION LOOP
-=========================================================== */
-function animate(){
-  requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  const t = clock.elapsedTime;
-
-  kingFloats.forEach(k=>{
-    k.mesh.position.y = k.baseY + Math.sin(t*1.5+k.phase)*0.3;
-  });
-
-  Object.values(castleGroups).forEach(c=>{
-    c.flag.rotation.y = Math.sin(t*3)*0.3;
-    c.flag.geometry.attributes.position && animateFlagCloth(c.flag, t);
-  });
-
-  Object.values(flameSystems).forEach(s=>updateParticleSystem(s,dt));
-  Object.values(smokeSystems).forEach(s=>updateParticleSystem(s,dt));
-
-  if(window.__ocean){ window.__ocean.position.y = -1.4 + Math.sin(t*0.6)*0.05; }
-  if(window.__compass){ window.__compass.rotation.y += 0.003; }
-  if(window.__siegeLines){
-    window.__siegeLines.children.forEach((l,i)=>{ l.material.dashSize = 1.2+Math.sin(t+i)*0.2; });
-  }
-
-  if(shakeTime > 0){
-    shakeTime = Math.max(0, shakeTime - dt*1.6);
-    camera.position.x += (Math.random()-0.5)*shakeTime*1.2;
-    camera.position.y += (Math.random()-0.5)*shakeTime*1.2;
-  }
-
-  controls.update();
-  renderer.render(scene, camera);
-}
-
-function animateFlagCloth(flag, t){
-  const pos = flag.geometry.attributes.position;
-  for(let i=0;i<pos.count;i++){
-    const x = pos.getX(i);
-    const wave = Math.sin(t*4 + x*2)*0.15*(x+1)/2;
-    pos.setZ(i, wave);
-  }
-  pos.needsUpdate = true;
-}
-
-/* ===========================================================
-   L. GAME FLOW
-=========================================================== */
-function alivePlayers(){ return gameState.players.filter(p=>p.alive); }
-
-function nextTurn(){
-  clearInterval(gameState.timer);
-  const living = alivePlayers();
-  if(living.length<=1){ return endGame(living[0]); }
-
-  let tries=0;
-  do{
-    gameState.turnIndex = (gameState.turnIndex+1) % gameState.players.length;
-    tries++;
-  } while(!gameState.players[gameState.turnIndex].alive && tries<10);
-
-  const player = gameState.players[gameState.turnIndex];
-  document.getElementById("turn-name").textContent = player.name;
-  gameState.phase = "question";
-  askQuestion(player);
-}
-
-function askQuestion(player){
-  const pool = VERB_BANK_AVAILABLE();
-  const q = pool[Math.floor(Math.random()*pool.length)];
-  gameState.currentQuestion = q;
-  gameState.usedQuestions.push(q);
-  if(gameState.usedQuestions.length > 18) gameState.usedQuestions.shift();
-
-  document.getElementById("q-player-label").textContent = `${player.name.toUpperCase()} — ${player.kingdom}`;
-  document.getElementById("question-verb").textContent = q.past;
-  const optsEl = document.getElementById("q-options");
-  optsEl.innerHTML = "";
-  document.getElementById("q-feedback").textContent = "";
-  shuffle(q.options).forEach(opt=>{
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "opt-btn w-full py-3 rounded-lg bg-stone-800/80 border border-amber-700/40 text-amber-100 font-cinzel font-bold hover:bg-amber-800/50";
-    btn.textContent = opt;
-    btn.addEventListener("click", ()=> handleAnswer(opt===q.correct, player, btn));
-    optsEl.appendChild(btn);
-  });
-
-  document.getElementById("question-modal").classList.remove("hidden");
-  document.getElementById("question-modal").classList.add("flex");
-  startTimer(player);
-}
-
-function VERB_BANK_AVAILABLE(){
-  const used = new Set(gameState.usedQuestions.map(q=>q.past));
-  const fresh = VERB_BANK.filter(q=>!used.has(q.past));
-  return fresh.length ? fresh : VERB_BANK;
-}
-
-function startTimer(player){
-  gameState.timeLeft = 15;
-  document.getElementById("timer-num").textContent = "15s";
-  document.getElementById("sand-fill").style.height = "100%";
-  gameState.timer = setInterval(()=>{
-    gameState.timeLeft--;
-    document.getElementById("timer-num").textContent = gameState.timeLeft+"s";
-    document.getElementById("sand-fill").style.height = Math.max(0,(gameState.timeLeft/15*100))+"%";
-    if(gameState.timeLeft<=0){
-      clearInterval(gameState.timer);
-      handleAnswer(false, player, null);
-    }
-  },1000);
-}
-
-function handleAnswer(correct, player, btnEl){
-  clearInterval(gameState.timer);
-  document.querySelectorAll("#q-options button").forEach(b=>b.disabled = true);
-  const fb = document.getElementById("q-feedback");
-  if(correct){
-    fb.textContent = "✅ ¡Correcto!";
-    fb.className = "mt-3 text-sm font-bold text-emerald-400";
-    if(btnEl) btnEl.classList.add("ring-2","ring-emerald-400");
-    logAction(`✅ <strong>${player.name}</strong> respondió correctamente (${gameState.currentQuestion.past} → ${gameState.currentQuestion.correct}).`, "success");
-  } else {
-    fb.textContent = "❌ Incorrecto. Pierdes este asalto.";
-    fb.className = "mt-3 text-sm font-bold text-red-400";
-    logAction(`❌ <strong>${player.name}</strong> falló (${gameState.currentQuestion.past} → ${gameState.currentQuestion.correct}).`, "fail");
-  }
-
-  setTimeout(()=>{
-    document.getElementById("question-modal").classList.add("hidden");
-    document.getElementById("question-modal").classList.remove("flex");
-    if(correct){
-      openChestModal(player, ()=> beginTargeting(player));
-    } else {
-      nextTurn();
-    }
-  }, 1100);
-}
-
-function beginTargeting(player){
-  if(alivePlayers().length<=1) return endGame(alivePlayers()[0]);
-  gameState.phase = "targeting";
-  gameState.selectedAttacker = player.key;
-  document.getElementById("target-banner").classList.remove("hidden");
-  document.getElementById("target-banner").classList.add("flex");
-
-  // if only one enemy alive, auto target after short delay for UX clarity (still allow click)
-}
-
-function resolveAttack(attackerKey, targetKey){
-  gameState.phase = "resolving";
-  document.getElementById("target-banner").classList.add("hidden");
-  castleGroups[targetKey].pulse.material.opacity = 0;
-
-  const attacker = gameState.players.find(p=>p.key===attackerKey);
-  const target = gameState.players.find(p=>p.key===targetKey);
-
-  fireProjectile(attackerKey, targetKey, ()=>{
-    let dmg = 1;
-    if(attacker.hammers>0){ dmg = 2; attacker.hammers--; logAction(`🔨 ${attacker.name} usó un Martillo de Guerra (+1 daño).`,"item"); }
-    if(attacker.bombs>0){ dmg = 5; attacker.bombs--; logAction(`💣 ${attacker.name} desató una Súper Bomba!`, "item"); }
-    if(target.shields>0){ target.shields--; dmg = 0; logAction(`🛡️ ${target.name} bloqueó el ataque con un Escudo.`, "item"); }
-
-    target.hp = Math.max(0, target.hp - dmg);
-    if(dmg>0) logAction(`⚔️ <strong>${attacker.name}</strong> atacó a <strong>${target.name}</strong> (-${dmg} HP, ${target.hp}/5).`, "attack");
-    applyDamageVisuals(targetKey, target.hp);
-    if(target.hp<=0){
-      target.alive = false;
-      logAction(`💀 <strong>${target.name}</strong> ha caído! El reino ${target.kingdom} se desmorona.`, "death");
-    }
-    renderRanking();
-    setTimeout(()=>{
-      if(alivePlayers().length<=1){ endGame(alivePlayers()[0]); }
-      else nextTurn();
-    }, 600);
-  });
-}
-
-/* ===========================================================
-   M. CHESTS
-=========================================================== */
-const CHEST_ITEMS = [
-  {label:"🛡️ Escudo", type:"shield"},
-  {label:"🔨 Martillo", type:"hammer"},
-  {label:"💣 Súper Bomba", type:"bomb"},
-  {label:"💨 Vacío", type:"empty"}
-];
-
-function openChestModal(player, onDone){
-  const modal = document.getElementById("chest-modal");
-  const grid = document.getElementById("chest-grid");
-  const result = document.getElementById("chest-result");
-  const closeBtn = document.getElementById("chest-close");
-  grid.innerHTML = "";
-  result.textContent = "";
-  closeBtn.classList.add("hidden");
-  modal.classList.remove("hidden"); modal.classList.add("flex");
-
-  let opened = false;
-  for(let i=0;i<10;i++){
-    const chest = document.createElement("button");
-    chest.type = "button";
-    chest.className = "relative aspect-square rounded-lg bg-gradient-to-b from-amber-700 to-amber-900 border-2 border-amber-400/60 flex items-center justify-center text-2xl hover:scale-105 transition active:scale-95";
-    chest.textContent = "🔒";
-    chest.addEventListener("click", ()=>{
-      if(opened) return;
-      opened = true;
-      document.querySelectorAll("#chest-grid button").forEach(b=>b.disabled=true);
-      chest.style.transform = "rotateX(-35deg)";
-      chest.style.transition = "transform .4s";
-      const item = CHEST_ITEMS[Math.floor(Math.random()*CHEST_ITEMS.length)];
-      setTimeout(()=>{
-        chest.textContent = item.label;
-        applyChestItem(player, item);
-        result.textContent = item.type==="empty" ? `${player.name} no encontró nada en el cofre...` : `${player.name} obtuvo: ${item.label}!`;
-        result.className = "mt-4 text-lg font-bold " + (item.type==="empty" ? "text-stone-400" : "text-amber-300");
-        closeBtn.classList.remove("hidden");
-      }, 420);
-    });
-    grid.appendChild(chest);
-  }
-
-  closeBtn.onclick = ()=>{
-    modal.classList.add("hidden"); modal.classList.remove("flex");
-    onDone();
-  };
-}
-
-function applyChestItem(player, item){
-  if(item.type==="shield") player.shields++;
-  if(item.type==="hammer") player.hammers++;
-  if(item.type==="bomb") player.bombs++;
-  renderRanking();
-}
-
-/* ===========================================================
-   N. HUD RENDER
-=========================================================== */
-function renderRanking(){
-  const list = document.getElementById("ranking-list");
-  const sorted = gameState.players.slice().sort((a,b)=> b.hp-a.hp);
-  list.innerHTML = sorted.map(p=>{
-    const hearts = "❤️".repeat(p.hp) + "🖤".repeat(5-p.hp);
-    const items = `${p.shields?`🛡️${p.shields} `:""}${p.hammers?`🔨${p.hammers} `:""}${p.bombs?`💣${p.bombs}`:""}`;
-    return `<div class="rounded-lg px-2 py-1.5 ${p.alive?'bg-black/30':'bg-black/60 opacity-50'} border border-amber-900/30">
-      <div class="flex justify-between items-center">
-        <span class="font-bold text-amber-100">${p.alive?'👑':'💀'} ${p.name}</span>
-        <span class="text-[10px] text-amber-300/70">${p.kingdom}</span>
-      </div>
-      <div class="text-xs">${hearts}</div>
-      <div class="text-[10px] text-amber-200/70">${items}</div>
-    </div>`;
-  }).join("");
-}
-
-function logAction(html, type){
-  const list = document.getElementById("log-list");
-  const colors = {success:"text-emerald-300", fail:"text-red-300", attack:"text-amber-200", death:"text-red-500 font-bold", item:"text-sky-300"};
-  const div = document.createElement("div");
-  div.className = "fade-in " + (colors[type]||"");
-  div.innerHTML = html;
-  list.prepend(div);
-  while(list.children.length>40) list.removeChild(list.lastChild);
-}
-
-function endGame(winner){
-  clearInterval(gameState.timer);
-  gameState.phase = "ended";
-  const modal = document.getElementById("win-modal");
-  document.getElementById("win-title").textContent = winner ? `¡${winner.name.toUpperCase()} REINA SUPREMA!` : "EMPATE EN LAS RUINAS";
-  document.getElementById("win-sub").textContent = winner ? `El reino de ${winner.kingdom} conquista Battle Castle.` : "Todos los reinos cayeron en la guerra.";
-  modal.classList.remove("hidden"); modal.classList.add("flex");
-}
-
-/* ===========================================================
-   O. WEB AUDIO — Procedural medieval war drums + fifths
-=========================================================== */
-let audioCtx;
-function startAudio(){
-  try{
-    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-    const master = audioCtx.createGain();
-    master.gain.value = 0.18;
-    master.connect(audioCtx.destination);
-
-    let step = 0;
-    const tempo = 480; // ms per beat
-    const fifths = [196.0, 293.66, 246.94, 220.0]; // G3, D4, B3, A3 root-ish
-    setInterval(()=>{
-      if(audioCtx.state==="suspended") return;
-      playDrum(master, step%4===0 ? 1 : 0.5);
-      if(step%2===0) playFlute(master, fifths[(step/2)%fifths.length]);
-      step++;
-    }, tempo);
-
-    document.body.addEventListener("click", ()=>{ if(audioCtx.state==="suspended") audioCtx.resume(); }, {once:true});
-  }catch(e){ /* audio unsupported */ }
-}
-
-function playDrum(dest, vol){
-  const t = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(110, t);
-  osc.frequency.exponentialRampToValueAtTime(45, t+0.15);
-  gain.gain.setValueAtTime(vol*0.5, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t+0.18);
-  osc.connect(gain); gain.connect(dest);
-  osc.start(t); osc.stop(t+0.2);
-}
-
-function playFlute(dest, freq){
-  const t = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(freq, t);
-  gain.gain.setValueAtTime(0, t);
-  gain.gain.linearRampToValueAtTime(0.12, t+0.05);
-  gain.gain.exponentialRampToValueAtTime(0.001, t+0.4);
-  osc.connect(gain); gain.connect(dest);
-  osc.start(t); osc.stop(t+0.42);
-}
-
-})();
-</script>
+
+    <!-- ================= MODAL: HOJA DE PREGUNTA ACTIVADA ================= -->
+    <div id="modal-pregunta" class="fixed inset-0 bg-black/90 z-50 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="bg-gradient-to-b from-stone-900 to-slate-950 border-4 border-amber-600 rounded-3xl p-6 max-w-xl w-full relative overflow-hidden shadow-2xl">
+            <!-- Barra del temporizador -->
+            <div id="timer-bar-container" class="absolute top-0 left-0 right-0 h-2 bg-stone-800">
+                <div id="timer-bar" class="h-full bg-gradient-to-r from-amber-500 to-red-650 transition-all duration-1000" style="width: 100%;"></div>
+            </div>
+
+            <!-- Marcador superior de tiempo -->
+            <div class="flex justify-between items-center mb-6 mt-2">
+                <span class="text-xs uppercase tracking-widest text-amber-400 font-bold font-medieval" id="question-index-label">Pergamino #XX</span>
+                <span class="text-base font-medieval text-red-400 font-bold" id="countdown-label">⏱️ 15s</span>
+            </div>
+
+            <div class="text-center mb-8">
+                <span class="text-stone-400 text-sm block mb-1 font-medieval">¿Cuál es el infinitivo (presente) de este verbo en Pasado Simple?</span>
+                <h4 id="question-verb" class="text-4xl md:text-5xl font-cinzel font-black tracking-widest text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.15)]">WENT</h4>
+            </div>
+
+            <!-- Opciones -->
+            <div class="space-y-4" id="alternatives-container">
+                <!-- Se inyectan las alternativas de respuesta -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: BONO - COFRES DE LA FORTUNA ================= -->
+    <div id="modal-bonus" class="fixed inset-0 bg-black/90 z-50 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="bg-stone-950/95 border-4 border-purple-800 rounded-3xl p-6 max-w-4xl w-full parchment text-stone-900 relative shadow-2xl">
+            <button onclick="closeModal('modal-bonus')" class="absolute top-4 right-4 text-stone-700 hover:text-stone-900 text-2xl font-bold">✕</button>
+            
+            <h3 class="text-2xl font-medieval text-center text-purple-950 mb-1 font-bold">🎁 COFRES DE LA FORTUNA 3D</h3>
+            <p class="text-center text-xs text-purple-900 mb-5 font-medieval">Abrid uno de los 10 cofres misteriosos en perspectiva para recibir recursos tácticos.</p>
+
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4" id="chests-container">
+                <!-- 10 Cofres en 3D interactivos -->
+            </div>
+
+            <div class="text-center text-[10px] text-purple-950 font-medieval border-t border-purple-950/10 pt-4 mt-5">
+                Contenido General: 4 Escudos (🛡️) | 2 Martillos (🔨) | 1 Súper Bomba (💣) | 3 Vacíos (💨)
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL COMPLEMENTARIO: CONFIRMACIÓN Y DIÁLOGOS ================= -->
+    <div id="modal-feedback" class="fixed inset-0 bg-black/85 z-[100] backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-stone-950/95 border-4 border-amber-700 rounded-2xl p-6 max-w-md w-full text-center relative shadow-2xl">
+            <h4 id="feedback-title" class="text-xl md:text-2xl font-medieval text-amber-400 mb-2">Mensaje</h4>
+            <p id="feedback-message" class="text-stone-300 text-sm mb-6 leading-relaxed">Mensaje informativo.</p>
+            <div class="flex justify-center gap-4 flex-wrap" id="feedback-buttons-container">
+                <!-- Botones inyectados dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= DESARROLLO DEL JUEGO ================= -->
+    <script>
+        /*************************************************************
+         * A. MANEJADOR SEGURO DE ALMACENAMIENTO (SafeStorage)
+         * Previene bloqueos del hilo JS si el navegador bloquea cookies/almacenamiento en iframes
+         *************************************************************/
+        const SafeStorage = {
+            fallback: {},
+            getItem(key) {
+                try {
+                    return localStorage.getItem(key);
+                } catch (e) {
+                    return this.fallback[key] || null;
+                }
+            },
+            setItem(key, value) {
+                try {
+                    localStorage.setItem(key, value);
+                } catch (e) {
+                    this.fallback[key] = value;
+                }
+            },
+            removeItem(key) {
+                try {
+                    localStorage.removeItem(key);
+                } catch (e) {
+                    delete this.fallback[key];
+                }
+            }
+        };
+
+        /*************************************************************
+         * B. MOTOR DE SONIDO (SINTETIZADO - Web Audio API NATIVO)
+         * Soporte 100% Offline y dinámico.
+         *************************************************************/
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = true;
+                this.volume = 0.5;
+                this.musicPlaying = false;
+                this.melodyTimer = null;
+                this.currentTempo = 115; // BPM medieval pausado
+                this.step = 0;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playClick() {
+                if (this.muted) return;
+                this.init();
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(650, this.ctx.currentTime + 0.08);
+                
+                gain.gain.setValueAtTime(this.volume * 0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            playCorrect() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    let osc = this.ctx.createOscillator();
+                    let gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+                    gain.gain.setValueAtTime(0, now + idx * 0.07);
+                    gain.gain.linearRampToValueAtTime(this.volume * 0.35, now + idx * 0.07 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.07 + 0.25);
+                    
+                    osc.start(now + idx * 0.07);
+                    osc.stop(now + idx * 0.07 + 0.25);
+                });
+            }
+
+            playIncorrect() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(70, now + 0.35);
+                
+                gain.gain.setValueAtTime(this.volume * 0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                
+                osc.start();
+                osc.stop(now + 0.35);
+            }
+
+            playExplosion(isSuper = false) {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                const bufferSize = this.ctx.sampleRate * (isSuper ? 1.5 : 0.8);
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                let noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                
+                let filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(isSuper ? 200 : 400, now);
+                filter.frequency.exponentialRampToValueAtTime(30, now + (isSuper ? 1.2 : 0.6));
+                
+                let gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(this.volume * 1.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + (isSuper ? 1.4 : 0.75));
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                noise.start(now);
+                noise.stop(now + (isSuper ? 1.4 : 0.75));
+            }
+
+            playShield() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(1500, now + 0.25);
+                
+                gain.gain.setValueAtTime(this.volume * 0.45, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                
+                osc.start();
+                osc.stop(now + 0.25);
+            }
+
+            playRepair() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                for (let i = 0; i < 3; i++) {
+                    let osc = this.ctx.createOscillator();
+                    let gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(280 + i * 110, now + i * 0.12);
+                    
+                    gain.gain.setValueAtTime(0, now + i * 0.12);
+                    gain.gain.linearRampToValueAtTime(this.volume * 0.35, now + i * 0.12 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.1);
+                    
+                    osc.start(now + i * 0.12);
+                    osc.stop(now + i * 0.12 + 0.1);
+                }
+            }
+
+            playFanfare() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [
+                    { f: 293.66, d: 0.15 },
+                    { f: 349.23, d: 0.15 },
+                    { f: 440.00, d: 0.15 },
+                    { f: 587.33, d: 0.5 }
+                ];
+                
+                notes.forEach((note, index) => {
+                    let osc = this.ctx.createOscillator();
+                    let gain = this.ctx.createGain();
+                    
+                    osc.type = 'sawtooth';
+                    let filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(1000, now);
+                    
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    const startTime = now + index * 0.18;
+                    osc.frequency.setValueAtTime(note.f, startTime);
+                    gain.gain.setValueAtTime(0, startTime);
+                    gain.gain.linearRampToValueAtTime(this.volume * 0.35, startTime + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + note.d);
+                    
+                    osc.start(startTime);
+                    osc.stop(startTime + note.d);
+                });
+            }
+
+            startMusic() {
+                if (this.musicPlaying) return;
+                this.init();
+                this.musicPlaying = true;
+
+                // Escala A Dorian (modo medieval clásico): A B C D E F# G
+                const scale = [220.00, 246.94, 261.63, 293.66, 329.63, 369.99, 392.00, 440.00];
+                // Melodía con saltos modales y reposos, estilo cantiga/danza antigua
+                const melody = [
+                    0, 2, 3, 4, 3, 2, 0, 2,
+                    4, 6, 5, 4, 3, 2, 1, 0,
+                    0, 3, 5, 7, 5, 3, 2, 0,
+                    2, 4, 3, 2, 0, -1, 0, -1
+                ];
+
+                this.currentTempo = 86; // Más pausado y solemne
+                const stepDuration = 60 / this.currentTempo;
+
+                // Dron grave de "viola de rueda" sostenido bajo toda la melodía
+                const droneOsc1 = this.ctx.createOscillator();
+                const droneOsc2 = this.ctx.createOscillator();
+                const droneGain = this.ctx.createGain();
+                const droneFilter = this.ctx.createBiquadFilter();
+                droneFilter.type = 'lowpass';
+                droneFilter.frequency.value = 500;
+                droneOsc1.type = 'sawtooth';
+                droneOsc2.type = 'sawtooth';
+                droneOsc1.frequency.value = scale[0] / 2;
+                droneOsc2.frequency.value = (scale[0] / 2) * 1.005; // leve desafinación para textura de cuerda
+                droneOsc1.connect(droneFilter);
+                droneOsc2.connect(droneFilter);
+                droneFilter.connect(droneGain);
+                droneGain.connect(this.ctx.destination);
+                droneGain.gain.value = 0;
+                droneGain.gain.linearRampToValueAtTime(this.volume * 0.08, this.ctx.currentTime + 1.5);
+                droneOsc1.start();
+                droneOsc2.start();
+                this.droneOsc1 = droneOsc1;
+                this.droneOsc2 = droneOsc2;
+                this.droneGain = droneGain;
+
+                const playStep = () => {
+                    if (!this.musicPlaying || this.muted) return;
+
+                    const now = this.ctx.currentTime;
+                    const scaleIndex = melody[this.step % melody.length];
+
+                    // Nota tipo "pulsada" (laúd/arpa): sawtooth + filtro paso bajo con decaimiento rápido
+                    if (scaleIndex >= 0) {
+                        const freq = scaleIndex >= 7 ? scale[scaleIndex % 8] * 2 : scale[scaleIndex];
+
+                        let osc = this.ctx.createOscillator();
+                        let filt = this.ctx.createBiquadFilter();
+                        let gain = this.ctx.createGain();
+                        osc.connect(filt);
+                        filt.connect(gain);
+                        gain.connect(this.ctx.destination);
+
+                        osc.type = 'sawtooth';
+                        filt.type = 'lowpass';
+                        filt.frequency.setValueAtTime(2200, now);
+                        filt.frequency.exponentialRampToValueAtTime(500, now + stepDuration * 0.8);
+                        osc.frequency.setValueAtTime(freq, now);
+
+                        gain.gain.setValueAtTime(0, now);
+                        gain.gain.linearRampToValueAtTime(this.volume * 0.22, now + 0.015);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + stepDuration * 0.85);
+
+                        osc.start(now);
+                        osc.stop(now + stepDuration * 0.9);
+                    }
+
+                    // Tambor suave (ruido filtrado) marcando el pulso cada 2 pasos
+                    if (this.step % 2 === 0) {
+                        const bufferSize = this.ctx.sampleRate * 0.12;
+                        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                        const data = buffer.getChannelData(0);
+                        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+                        let noise = this.ctx.createBufferSource();
+                        noise.buffer = buffer;
+                        let noiseFilter = this.ctx.createBiquadFilter();
+                        noiseFilter.type = 'lowpass';
+                        noiseFilter.frequency.setValueAtTime(this.step % 8 === 0 ? 220 : 320, now);
+                        let noiseGain = this.ctx.createGain();
+                        noiseGain.gain.setValueAtTime(this.volume * (this.step % 8 === 0 ? 0.32 : 0.18), now);
+                        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+                        noise.connect(noiseFilter);
+                        noiseFilter.connect(noiseGain);
+                        noiseGain.connect(this.ctx.destination);
+                        noise.start(now);
+                        noise.stop(now + 0.12);
+                    }
+
+                    this.step++;
+                    this.melodyTimer = setTimeout(playStep, stepDuration * 1000);
+                };
+
+                playStep();
+            }
+
+            stopMusic() {
+                this.musicPlaying = false;
+                clearTimeout(this.melodyTimer);
+                if (this.droneGain) {
+                    const now = this.ctx.currentTime;
+                    this.droneGain.gain.cancelScheduledValues(now);
+                    this.droneGain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    const o1 = this.droneOsc1, o2 = this.droneOsc2;
+                    setTimeout(() => { try { o1.stop(); o2.stop(); } catch(e) {} }, 450);
+                    this.droneOsc1 = null;
+                    this.droneOsc2 = null;
+                    this.droneGain = null;
+                }
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        function toggleMusic() {
+            sound.init();
+            sound.muted = !sound.muted;
+            const btn = document.getElementById('music-btn');
+            const status = document.getElementById('music-status');
+            
+            if (sound.muted) {
+                status.innerText = "OFF";
+                btn.classList.remove('bg-purple-950', 'text-amber-300');
+                sound.stopMusic();
+            } else {
+                status.innerText = "ON";
+                btn.classList.add('bg-purple-950', 'text-amber-300');
+                sound.startMusic();
+            }
+            sound.playClick();
+        }
+
+        function updateVolume(val) {
+            sound.volume = parseFloat(val);
+            sound.playClick();
+        }
+
+        function toggleFullscreen() {
+            sound.playClick();
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Error de pantalla completa:", err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+
+        /*************************************************************
+         * C. BASE DE PREGUNTAS (30 VERBOS EN PASADO SIMPLE)
+         *************************************************************/
+        const VERBOS_PREGUNTAS = [
+            { id: 1, past: "ATE", correct: "EAT", options: ["EAT", "DRINK", "WRITE"] },
+            { id: 2, past: "SAW", correct: "SEE", options: ["SEE", "SAY", "SING"] },
+            { id: 3, past: "WENT", correct: "GO", options: ["GO", "WANT", "WALK"] },
+            { id: 4, past: "DRANK", correct: "DRINK", options: ["DRINK", "DRAW", "DRIVE"] },
+            { id: 5, past: "BOUGHT", correct: "BUY", options: ["BUY", "BRING", "BUILD"] },
+            { id: 6, past: "MADE", correct: "MAKE", options: ["MAKE", "MEET", "MEAN"] },
+            { id: 7, past: "TOOK", correct: "TAKE", options: ["TAKE", "TALK", "TELL"] },
+            { id: 8, past: "CAME", correct: "COME", options: ["COME", "CALL", "CATCH"] },
+            { id: 9, past: "WROTE", correct: "WRITE", options: ["WRITE", "WORK", "WIN"] },
+            { id: 10, past: "SANG", correct: "SING", options: ["SING", "SIT", "SLEEP"] },
+            { id: 11, past: "SPOKE", correct: "SPEAK", options: ["SPEAK", "SPEND", "STAND"] },
+            { id: 12, past: "RAN", correct: "RUN", options: ["RUN", "READ", "RIDE"] },
+            { id: 13, past: "SLEPT", correct: "SLEEP", options: ["SLEEP", "SELL", "SEND"] },
+            { id: 14, past: "SWAM", correct: "SWIM", options: ["SWIM", "SWEAR", "SWEEP"] },
+            { id: 15, past: "HAD", correct: "HAVE", options: ["HAVE", "HEAR", "HIDE"] },
+            { id: 16, past: "DID", correct: "DO", options: ["DO", "DIG", "DRAW"] },
+            { id: 17, past: "GAVE", correct: "GIVE", options: ["GIVE", "GROW", "GET"] },
+            { id: 18, past: "THOUGHT", correct: "THINK", options: ["THINK", "THROW", "TEACH"] },
+            { id: 19, past: "FELL", correct: "FALL", options: ["FALL", "FEEL", "FIND"] },
+            { id: 20, past: "FLEW", correct: "FLY", options: ["FLY", "FLOW", "FORGET"] },
+            { id: 21, past: "HEARD", correct: "HEAR", options: ["HEAR", "HELP", "HURT"] },
+            { id: 22, past: "KEPT", correct: "KEEP", options: ["KEEP", "KNOW", "KILL"] },
+            { id: 23, past: "LEFT", correct: "LEAVE", options: ["LEAVE", "LOSE", "LAUGH"] },
+            { id: 24, past: "MET", correct: "MEET", options: ["MEET", "MIND", "MOVE"] },
+            { id: 25, past: "PAID", correct: "PAY", options: ["PAY", "PLAY", "PUT"] },
+            { id: 26, past: "READ", correct: "READ", options: ["READ", "RIDE", "RING"] },
+            { id: 27, past: "SOLD", correct: "SELL", options: ["SELL", "SEND", "SHAKE"] },
+            { id: 28, past: "TOLD", correct: "TELL", options: ["TELL", "THINK", "TEAR"] },
+            { id: 29, past: "STOOD", correct: "STAND", options: ["STAND", "SPEAK", "STEAL"] },
+            { id: 30, past: "WON", correct: "WIN", options: ["WIN", "WRITE", "WEAR"] }
+        ];
+
+        const EMERALD = "emerald";
+        const AMBER = "amber";
+        const RED = "rose";
+        const BLUE = "sky";
+        const VIOLET = "violet";
+
+        const CASTLE_COLORS = [EMERALD, AMBER, RED, BLUE, VIOLET];
+        const CASTLE_TAILWIND_COLORS = {
+            emerald: { border: "border-emerald-500", bg: "bg-emerald-950/70", bgDark: "bg-emerald-950/90", shadow: "shadow-emerald-900/30", accent: "text-emerald-400", hex: "#10b981", name: "Estandarte Esmeralda" },
+            amber: { border: "border-amber-500", bg: "bg-amber-950/70", bgDark: "bg-amber-950/90", shadow: "shadow-amber-900/30", accent: "text-amber-400", hex: "#f59e0b", name: "Estandarte Dorado" },
+            rose: { border: "border-rose-500", bg: "bg-rose-950/70", bgDark: "bg-rose-950/90", shadow: "shadow-rose-900/30", accent: "text-rose-400", hex: "#f43f5e", name: "Estandarte Carmesí" },
+            sky: { border: "border-sky-500", bg: "bg-sky-950/70", bgDark: "bg-sky-950/90", shadow: "shadow-sky-900/30", accent: "text-sky-400", hex: "#0ea5e9", name: "Estandarte Azur" },
+            violet: { border: "border-violet-500", bg: "bg-violet-950/70", bgDark: "bg-violet-950/90", shadow: "shadow-violet-900/30", accent: "text-violet-400", hex: "#8b5cf6", name: "Estandarte Amatista" }
+        };
+
+        const DEFAULT_NAMES = [
+            "Castillo de Esmeralda",
+            "Baluarte de Oro",
+            "Ciudadela Carmesí",
+            "Fuerte del Océano",
+            "Templo Amatista"
+        ];
+
+        // Coordenadas (en % del lienzo del mapa) de cada reino, inspiradas en el "Mapa de los Reinos"
+        const MAP_POSITIONS = {
+            emerald: { x: 35, y: 26, terrain: "forest" },
+            amber:   { x: 70, y: 31, terrain: "mountain" },
+            rose:    { x: 15, y: 53, terrain: "crimson" },
+            sky:     { x: 81, y: 65, terrain: "ice" },
+            violet:  { x: 49, y: 81, terrain: "crystal" }
+        };
+
+        // Estos datos los necesita el motor 3D (módulo ES Arena3D, con su propio scope aislado)
+        window.MAP_POSITIONS = MAP_POSITIONS;
+        window.CASTLE_TAILWIND_COLORS = CASTLE_TAILWIND_COLORS;
+        window.CASTLE_COLORS = CASTLE_COLORS;
+
+
+        /*************************************************************
+         * D. ESTADO DE LA PARTIDA (GAME STATE)
+         *************************************************************/
+        let gameState = {
+            castles: [],
+            currentTurn: 0,
+            usedQuestions: [],
+            timerEnabled: true,
+            timerRemaining: 15,
+            timerInterval: null,
+            activeQuestion: null,
+            selectedQuestionNum: null,
+            status: "setup", 
+            log: [],
+            kingMoods: [ "idle", "idle", "idle", "idle", "idle" ],
+            superBombActive: false,
+        };
+
+        const LOCAL_STORAGE_KEY = "battle_castle_3d_save";
+
+
+        /*************************************************************
+         * E. SISTEMA DE CANVAS, PROYECTILES Y PARTÍCULAS
+         *************************************************************/
+        const canvas = document.getElementById("battle-canvas");
+        const ctx = canvas.getContext("2d");
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        // Partículas overlay 2D: se usan SOLO para confeti/fuegos artificiales de la pantalla
+        // de victoria. Las explosiones, catapultas y daño del campo de batalla ahora ocurren
+        // en el motor 3D real (Three.js) — ver Arena3D más abajo.
+        class Particle {
+            constructor(x, y, color, type = 'smoke') {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.type = type;
+                this.vx = (Math.random() - 0.5) * (type === 'fireworks' ? 14 : 5);
+                this.vy = (Math.random() - 0.5) * (type === 'fireworks' ? 14 : 5) - (type === 'smoke' || type === 'fire' ? 2.5 : 0);
+                this.alpha = 1;
+                this.size = Math.random() * (type === 'smoke' ? 22 : type === 'fire' ? 16 : type === 'fireworks' ? 6 : 4) + 2;
+                this.decay = Math.random() * 0.018 + 0.012;
+                this.gravity = type === 'confetti' || type === 'fireworks' ? 0.15 : 0;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.alpha -= this.decay;
+                if (this.alpha < 0) this.alpha = 0;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                if (this.type === 'confetti') {
+                    ctx.fillRect(this.x, this.y, this.size, this.size * 1.5);
+                } else {
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles = particles.filter(p => {
+                p.update();
+                p.draw();
+                return p.alpha > 0;
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+        gameLoop();
+
+        function createFireworks() {
+            if (gameState.status !== 'victory') return;
+            const colors = ['#fbbf24', '#f43f5e', '#3b82f6', '#10b981', '#c084fc'];
+            
+            const run = () => {
+                if (gameState.status !== 'victory') return;
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * (canvas.height * 0.5);
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                sound.playCorrect();
+                for (let i = 0; i < 35; i++) {
+                    particles.push(new Particle(x, y, color, 'fireworks'));
+                }
+                setTimeout(run, Math.random() * 600 + 400);
+            };
+            run();
+        }
+
+        function triggerConfetti() {
+            for (let i = 0; i < 120; i++) {
+                setTimeout(() => {
+                    if (gameState.status !== 'victory') return;
+                    const x = Math.random() * canvas.width;
+                    const y = -10;
+                    const color = `hsl(${Math.random() * 360}, 100%, 55%)`;
+                    particles.push(new Particle(x, y, color, 'confetti'));
+                }, i * 35);
+            }
+        }
+
+
+        /*************************************************************
+         * G. RENDERIZADO 3D DEL CAMPO DE BATALLA
+         * (delegado por completo al motor real Three.js -> objeto Arena3D,
+         *  definido en el <script type="module"> al final del documento)
+         *************************************************************/
+
+
+        /*************************************************************
+         * H. INTERFAZ Y ACTUALIZACIONES DE RÁNKING
+         *************************************************************/
+        function updateUI() {
+            const activeCastle = gameState.castles[gameState.currentTurn];
+            const pName = document.getElementById("active-player-name");
+            pName.innerText = activeCastle.name;
+            pName.className = `text-2xl md:text-3xl font-medieval tracking-wide ${CASTLE_TAILWIND_COLORS[activeCastle.color].accent}`;
+
+            const bonusBtn = document.getElementById("bonus-btn");
+            if (activeCastle.bonusCooldown > 0) {
+                bonusBtn.disabled = true;
+                bonusBtn.classList.add("opacity-40", "cursor-not-allowed");
+                bonusBtn.classList.remove("opacity-25");
+                bonusBtn.innerHTML = `🎁 EN ${activeCastle.bonusCooldown} TURNO${activeCastle.bonusCooldown > 1 ? 'S' : ''}`;
+            } else {
+                bonusBtn.disabled = false;
+                bonusBtn.classList.remove("opacity-25", "opacity-40", "cursor-not-allowed");
+                bonusBtn.innerHTML = "🎁 COFRE DE RECURSOS";
+            }
+
+            // Actualizar Ránking Lateral
+            const sidebar = document.getElementById("sidebar-leaderboard");
+            sidebar.innerHTML = "";
+
+            const sorted = [...gameState.castles].sort((a, b) => b.hp - a.hp);
+            const highestHp = sorted[0].hp;
+
+            sorted.forEach((castle, index) => {
+                const colorConfig = CASTLE_TAILWIND_COLORS[castle.color];
+                const isLeader = castle.hp === highestHp && castle.hp > 0;
+                
+                const item = document.createElement("div");
+                item.className = `flex items-center justify-between p-2 rounded-lg border bg-stone-900/60 ${castle.destroyed ? 'border-red-950/20 opacity-35' : 'border-purple-950/20'}`;
+                item.innerHTML = `
+                    <div class="flex items-center gap-2 truncate">
+                        <span class="text-xs font-bold text-stone-500">#${index + 1}</span>
+                        <div class="w-2.5 h-2.5 rounded-full" style="background-color: ${colorConfig.hex}"></div>
+                        <span class="text-xs font-semibold text-stone-200 truncate ${castle.destroyed ? 'line-through text-stone-500' : ''}">
+                            ${castle.name}
+                        </span>
+                        ${isLeader && !castle.destroyed ? '<span class="text-[9px] text-yellow-500 font-bold animate-pulse">LÍDER</span>' : ''}
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-stone-400 font-medieval">
+                        <span>❤️ ${castle.hp}</span>
+                        <span>🛡️ ${castle.shield}</span>
+                    </div>
+                `;
+                sidebar.appendChild(item);
+            });
+
+            // Cuadrícula de preguntas
+            const qGrid = document.getElementById("questions-used-grid");
+            qGrid.innerHTML = "";
+            for (let i = 1; i <= 30; i++) {
+                const isUsed = gameState.usedQuestions.includes(i);
+                const cell = document.createElement("div");
+                cell.className = `p-0.5 rounded text-[9px] font-bold ${isUsed ? 'bg-rose-950/70 text-rose-500 border border-rose-900/20' : 'bg-purple-950/70 text-purple-400 border border-purple-900/20'}`;
+                cell.innerText = i;
+                qGrid.appendChild(cell);
+            }
+
+            // Refresca la escena 3D real (Three.js): castillos, reyes, HP, daños, turno activo, objetivos
+            if (window.Arena3D) window.Arena3D.refresh(gameState);
+        }
+
+        function logAction(msg, type = 'info') {
+            const container = document.getElementById("battle-log");
+            const entry = document.createElement("div");
+            
+            let color = "text-stone-400";
+            if (type === 'success') color = "text-emerald-400";
+            if (type === 'danger') color = "text-rose-400";
+            if (type === 'warning') color = "text-amber-400";
+            if (type === 'bonus') color = "text-purple-400";
+
+            entry.className = `${color} border-b border-stone-900/40 pb-1`;
+            entry.innerHTML = `<span class="text-stone-600 font-bold">[${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]</span> ${msg}`;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            
+            gameState.log.push({ msg, type, time: Date.now() });
+            saveGameState();
+        }
+
+
+        /*************************************************************
+         * I. FLUJO DE JUEGO & ALMACENAMIENTO DINÁMICO
+         *************************************************************/
+        window.onload = function() {
+            // Generación de inputs
+            const container = document.getElementById("setup-castles-list");
+            container.innerHTML = "";
+            for (let i = 0; i < 5; i++) {
+                const colorConfig = CASTLE_TAILWIND_COLORS[CASTLE_COLORS[i]];
+                container.innerHTML += `
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">🏰</span>
+                        <div class="w-full">
+                            <label class="text-[10px] uppercase tracking-widest font-bold ${colorConfig.accent}">${colorConfig.name}</label>
+                            <input id="input-castle-${i}" type="text" value="${DEFAULT_NAMES[i]}" maxlength="20" 
+                                class="w-full bg-amber-50/95 border-2 border-amber-950/30 rounded-lg px-3 py-1.5 text-stone-900 font-semibold focus:border-amber-700 outline-none text-sm">
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Intento de recuperación seguro
+            const loaded = SafeStorage.getItem(LOCAL_STORAGE_KEY);
+            if (loaded) {
+                try {
+                    const parsed = JSON.parse(loaded);
+                    if (parsed && parsed.castles && parsed.castles.length > 0) {
+                        showFeedbackModal(
+                            "💾 PARTIDA PREVIA DETECTADA", 
+                            "Existe una batalla activa en los registros medievales de vuestro navegador. ¿Deseáis reanudar la campaña?",
+                            [
+                                { label: "REANUDAR CAMPANÑA", action: () => { loadSavedGame(); closeModal('modal-feedback'); } },
+                                { label: "NUEVA PARTIDA", action: () => { SafeStorage.removeItem(LOCAL_STORAGE_KEY); closeModal('modal-feedback'); } }
+                            ]
+                        );
+                    }
+                } catch(e) {
+                    SafeStorage.removeItem(LOCAL_STORAGE_KEY);
+                }
+            }
+        };
+
+        function startGame() {
+            sound.init(); 
+            sound.playClick();
+            
+            gameState.castles = [];
+            for (let i = 0; i < 5; i++) {
+                const nameInput = document.getElementById(`input-castle-${i}`).value.trim();
+                gameState.castles.push({
+                    name: nameInput || DEFAULT_NAMES[i],
+                    color: CASTLE_COLORS[i],
+                    hp: 5,
+                    shield: 0,
+                    hammer: 0,
+                    superbomb: false,
+                    destroyed: false,
+                    bonusCooldown: 0
+                });
+            }
+
+            gameState.timerEnabled = document.getElementById("timer-toggle").checked;
+            gameState.currentTurn = 0;
+            gameState.usedQuestions = [];
+            gameState.status = "playing";
+            gameState.log = [];
+            gameState.kingMoods = ["idle", "idle", "idle", "idle", "idle"];
+
+            document.getElementById("screen-setup").classList.add("hidden");
+            document.getElementById("screen-game").classList.remove("hidden");
+            
+            logAction("⚔️ ¡Ha iniciado el asedio de los reinos! Demostrad vuestro conocimiento.", "warning");
+            updateUI();
+            saveGameState();
+        }
+
+        function nextTurn() {
+            if (checkVictory()) return;
+
+            let attempts = 0;
+            do {
+                gameState.currentTurn = (gameState.currentTurn + 1) % 5;
+                attempts++;
+            } while (gameState.castles[gameState.currentTurn].destroyed && attempts < 6);
+
+            const upcomingCastle = gameState.castles[gameState.currentTurn];
+
+            // El cofre de recursos se vuelve a habilitar tras 3 turnos propios desde su último uso
+            if (upcomingCastle.bonusCooldown > 0) {
+                upcomingCastle.bonusCooldown--;
+                if (upcomingCastle.bonusCooldown === 0) {
+                    logAction(`🎁 ¡El cofre de recursos de <strong class="text-white">${upcomingCastle.name}</strong> está disponible de nuevo!`, "bonus");
+                }
+            }
+
+            gameState.kingMoods[gameState.currentTurn] = "idle";
+            gameState.superBombActive = false; 
+
+            logAction(`Siguiente turno: <strong class="text-white">${upcomingCastle.name}</strong>`, "info");
+            updateUI();
+            saveGameState();
+        }
+
+        function checkVictory() {
+            const alive = gameState.castles.filter(c => !c.destroyed);
+            if (alive.length === 1) {
+                gameState.status = "victory";
+                const winner = alive[0];
+                const winnerIndex = gameState.castles.findIndex(c => c.name === winner.name);
+
+                gameState.kingMoods[winnerIndex] = "victory";
+
+                // La arena 3D permanece visible: la cámara vuela hacia el rey vencedor
+                document.getElementById("screen-victory").classList.remove("hidden");
+                document.getElementById("victory-castle-name").innerText = winner.name;
+
+                if (window.Arena3D) {
+                    window.Arena3D.refresh(gameState);
+                    window.Arena3D.playVictory(winnerIndex);
+                }
+
+                sound.playFanfare();
+                triggerConfetti();
+                createFireworks();
+                
+                logAction(`👑 ¡${winner.name} HA CONQUISTADO EL TRONO ABSOLUTO!`, "success");
+                SafeStorage.removeItem(LOCAL_STORAGE_KEY);
+                return true;
+            }
+            return false;
+        }
+
+        function saveGameState() {
+            SafeStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
+        }
+
+        function loadSavedGame() {
+            const data = JSON.parse(SafeStorage.getItem(LOCAL_STORAGE_KEY));
+            if (data) {
+                gameState = data;
+                document.getElementById("screen-setup").classList.add("hidden");
+                document.getElementById("screen-game").classList.remove("hidden");
+                document.getElementById("screen-victory").classList.add("hidden");
+                
+                if (!sound.muted) {
+                    sound.startMusic();
+                }
+
+                logAction("💾 Campaña recuperada correctamente.", "success");
+                updateUI();
+            }
+        }
+
+        function triggerResetConfirm() {
+            sound.playClick();
+            showFeedbackModal(
+                "⚔️ ¿ABANDONAR?",
+                "¿Deseáis abandonar las fortalezas activas? La campaña actual se perderá en las arenas del tiempo.",
+                [
+                    { label: "SÍ, REINICIAR", action: () => { SafeStorage.removeItem(LOCAL_STORAGE_KEY); triggerResetGame(); } },
+                    { label: "SEGUIR JUGANDO", action: () => closeModal('modal-feedback') }
+                ]
+            );
+        }
+
+        function triggerResetGame() {
+            location.reload();
+        }
+
+
+        /*************************************************************
+         * J. SISTEMA GRAMATICAL DE PREGUNTAS Y TEMPORIZADORES
+         *************************************************************/
+        function promptQuestionSelection() {
+            sound.playClick();
+            
+            const grid = document.getElementById("pergaminos-grid-selection");
+            grid.innerHTML = "";
+
+            for (let i = 1; i <= 30; i++) {
+                const isUsed = gameState.usedQuestions.includes(i);
+                const btn = document.createElement("button");
+                
+                if (isUsed) {
+                    btn.className = "p-3 bg-stone-900 border border-stone-850 text-stone-600 rounded-xl cursor-not-allowed text-xs font-bold font-medieval flex flex-col items-center justify-center shadow-inner";
+                    btn.innerHTML = `<span>📜</span><span class="text-[9px]">X</span>`;
+                    btn.disabled = true;
+                } else {
+                    btn.className = "rpg-btn p-3 rounded-xl text-sm font-bold font-medieval flex flex-col items-center justify-center text-white shadow-md";
+                    btn.innerHTML = `<span>📜</span><span>${i}</span>`;
+                    btn.setAttribute("onclick", `selectQuestion(${i})`);
+                }
+                grid.appendChild(btn);
+            }
+
+            openModal('modal-pergaminos');
+        }
+
+        function selectQuestion(num) {
+            sound.playClick();
+            closeModal('modal-pergaminos');
+
+            if (gameState.usedQuestions.includes(num)) {
+                showFeedbackModal("❌ PERGAMINO AGOTADO", "Este manuscrito ya ha sido descifrado.", [
+                    { label: "ENTENDIDO", action: () => { closeModal('modal-feedback'); promptQuestionSelection(); } }
+                ]);
+                return;
+            }
+
+            gameState.selectedQuestionNum = num;
+            
+            const q = VERBOS_PREGUNTAS.find(item => item.id === num);
+            if (!q) return;
+
+            gameState.activeQuestion = q;
+            
+            document.getElementById("question-index-label").innerText = `MANUSCRITO DE ASEGURACIÓN #${num}`;
+            document.getElementById("question-verb").innerText = q.past;
+
+            const mixedOptions = [...q.options].sort(() => Math.random() - 0.5);
+            const container = document.getElementById("alternatives-container");
+            container.innerHTML = "";
+
+            mixedOptions.forEach(opt => {
+                const optBtn = document.createElement("button");
+                optBtn.className = "w-full py-3.5 px-5 bg-stone-900 hover:bg-stone-850 border-2 border-stone-700 hover:border-amber-500 rounded-xl text-left text-base font-medieval text-stone-200 flex justify-between items-center transition duration-150 active:scale-95 shadow-md";
+                optBtn.innerHTML = `<span>${opt}</span> <span class="opacity-30">🛡️</span>`;
+                optBtn.setAttribute("onclick", `submitAnswer('${opt}')`);
+                container.appendChild(optBtn);
+            });
+
+            openModal('modal-pregunta');
+
+            if (gameState.timerEnabled) {
+                startTimer();
+            } else {
+                document.getElementById("timer-bar-container").classList.add("hidden");
+                document.getElementById("countdown-label").innerText = "Sin límite";
+            }
+        }
+
+        function startTimer() {
+            document.getElementById("timer-bar-container").classList.remove("hidden");
+            gameState.timerRemaining = 15;
+            const bar = document.getElementById("timer-bar");
+            const label = document.getElementById("countdown-label");
+
+            bar.style.width = "100%";
+            label.innerText = `⏱️ ${gameState.timerRemaining}s`;
+
+            clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(() => {
+                gameState.timerRemaining--;
+                label.innerText = `⏱️ ${gameState.timerRemaining}s`;
+                bar.style.width = `${(gameState.timerRemaining / 15) * 100}%`;
+
+                if (gameState.timerRemaining <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    handleTimeout();
+                }
+            }, 1000);
+        }
+
+        function handleTimeout() {
+            sound.playIncorrect();
+            closeModal('modal-pregunta');
+            
+            const activeCastle = gameState.castles[gameState.currentTurn];
+            gameState.kingMoods[gameState.currentTurn] = "incorrect"; 
+            gameState.usedQuestions.push(gameState.selectedQuestionNum);
+
+            logAction(`⏳ ¡Tiempo agotado para <strong class="text-white">${activeCastle.name}</strong>! Se le escapó la oportunidad.`, "danger");
+
+            showFeedbackModal("⏳ TIEMPO AGOTADO", "El tiempo de asedio se ha consumido. Vuestras tropas pierden la iniciativa.", [
+                { label: "Pasar Turno", action: () => { closeModal('modal-feedback'); nextTurn(); } }
+            ]);
+        }
+
+        function submitAnswer(selected) {
+            clearInterval(gameState.timerInterval);
+            closeModal('modal-pregunta');
+
+            const q = gameState.activeQuestion;
+            const activeCastle = gameState.castles[gameState.currentTurn];
+            gameState.usedQuestions.push(gameState.selectedQuestionNum);
+
+            if (selected === q.correct) {
+                sound.playCorrect();
+                gameState.kingMoods[gameState.currentTurn] = "correct"; 
+                logAction(`✅ <strong class="text-white">${activeCastle.name}</strong> dominó el verbo #${gameState.selectedQuestionNum} (${q.past} -> ${q.correct}).`, "success");
+                
+                if (activeCastle.superbomb) {
+                    gameState.superBombActive = true;
+                    activeCastle.superbomb = false; 
+                }
+
+                gameState.status = "target_selection";
+                updateUI();
+                
+                showFeedbackModal(
+                    "🔥 ¡PREPARAD CATAPULTA!",
+                    "¡Verbo correcto! Haced clic directo sobre el reino enemigo que deseáis bombardear en el mapa.",
+                    [{ label: "ELEGIR OBJETIVO EN EL MAPA", action: () => closeModal('modal-feedback') }]
+                );
+
+            } else {
+                sound.playIncorrect();
+                gameState.kingMoods[gameState.currentTurn] = "incorrect"; 
+                logAction(`❌ <strong class="text-white">${activeCastle.name}</strong> erró el manuscrito #${gameState.selectedQuestionNum} (${selected}). Era ${q.correct}.`, "danger");
+
+                showFeedbackModal("❌ TRADUCCIÓN FALLIDA", `El infinitivo correcto de <strong>${q.past}</strong> es <strong>${q.correct}</strong>. Vuestros soldados se confunden y pierden el asedio.`, [
+                    { label: "Siguiente Turno", action: () => { closeModal('modal-feedback'); nextTurn(); } }
+                ]);
+            }
+        }
+
+
+        /*************************************************************
+         * K. LANZAMIENTO, COLISIONES Y RESOLUCIÓN DE DAÑOS
+         *************************************************************/
+        function executeCatapultAttack(targetIndex) {
+            sound.playClick();
+            gameState.status = "playing"; 
+
+            const attackerIndex = gameState.currentTurn;
+            const attacker = gameState.castles[attackerIndex];
+            const target = gameState.castles[targetIndex];
+            const isSuper = gameState.superBombActive;
+
+            logAction(`☄️ <strong class="text-white">${attacker.name}</strong> lanza asalto de catapulta hacia <strong class="text-white">${target.name}</strong>.`, "warning");
+
+            // El motor 3D anima el proyectil real en el espacio y dispara explosión al impactar
+            if (window.Arena3D) {
+                window.Arena3D.fireCatapult(attackerIndex, targetIndex, isSuper, () => {
+                    sound.playExplosion(isSuper);
+                    applyAttackDamage(targetIndex, isSuper);
+                    gameState.superBombActive = false;
+                });
+            } else {
+                // Respaldo por si el motor 3D aún no cargó
+                sound.playExplosion(isSuper);
+                applyAttackDamage(targetIndex, isSuper);
+                gameState.superBombActive = false;
+            }
+
+            updateUI();
+        }
+
+        function applyAttackDamage(targetIndex, isSuper = false) {
+            const target = gameState.castles[targetIndex];
+            const damageToDeal = isSuper ? 2 : 1;
+
+            gameState.kingMoods[targetIndex] = "hit";
+
+            setTimeout(() => {
+                if (target.shield > 0) {
+                    target.shield--;
+                    sound.playShield();
+                    gameState.kingMoods[targetIndex] = "shield"; 
+                    logAction(`🛡️ ¡El Escudo rúnico de <strong class="text-white">${target.name}</strong> neutralizó el impacto!`, "success");
+                    
+                    showFeedbackModal("🛡️ IMPACTO ABSORBIDO", `El escudo protector de <strong>${target.name}</strong> bloqueó la bomba con éxito.`, [
+                        { label: "Continuar", action: () => { closeModal('modal-feedback'); nextTurn(); } }
+                    ]);
+                } else {
+                    target.hp -= damageToDeal;
+                    if (target.hp < 0) target.hp = 0;
+
+                    logAction(`💥 ¡Brecha lograda! <strong class="text-white">${target.name}</strong> sufre ${damageToDeal} de daño estructural.`, "danger");
+
+                    if (target.hp <= 0) {
+                        target.destroyed = true;
+                        gameState.kingMoods[targetIndex] = "destroyed"; 
+                        logAction(`🏰☠️ ¡LA CIUDADELA DE <strong class="text-white">${target.name}</strong> HA SIDO ASOLADA!`, "danger");
+                        
+                        showFeedbackModal("💥 ¡REINO ASOLADO!", `El castillo de <strong>${target.name}</strong> ha quedado reducido a escombros 3D. Sus tropas huyen.`, [
+                            { label: "Continuar", action: () => { closeModal('modal-feedback'); nextTurn(); } }
+                        ]);
+                    } else {
+                        setTimeout(() => {
+                            if (!target.destroyed) gameState.kingMoods[targetIndex] = "idle";
+                            updateUI();
+                        }, 1800);
+
+                        showFeedbackModal("💥 IMPACTO DIRECTO", `La fortaleza de <strong>${target.name}</strong> sufre graves averías estructurales (-${damageToDeal} HP).`, [
+                            { label: "Continuar", action: () => { closeModal('modal-feedback'); nextTurn(); } }
+                        ]);
+                    }
+                }
+                updateUI();
+                saveGameState();
+            }, 500);
+        }
+
+
+        /*************************************************************
+         * L. APERTURA DE COFRES DE BONIFICACIÓN 3D
+         *************************************************************/
+        function openBonusChestSelection() {
+            sound.playClick();
+            
+            const rewardsPool = [
+                { type: 'shield', icon: '🛡️', title: 'Escudo Rúnico', desc: 'Anula por completo el próximo impacto enemigo.' },
+                { type: 'shield', icon: '🛡️', title: 'Escudo Rúnico', desc: 'Anula por completo el próximo impacto enemigo.' },
+                { type: 'shield', icon: '🛡️', title: 'Escudo Rúnico', desc: 'Anula por completo el próximo impacto enemigo.' },
+                { type: 'shield', icon: '🛡️', title: 'Escudo Rúnico', desc: 'Anula por completo el próximo impacto enemigo.' },
+                { type: 'hammer', icon: '🔨', title: 'Martillo Constructor', desc: 'Restaura 1 punto de vida a vuestro bastión.' },
+                { type: 'hammer', icon: '🔨', title: 'Martillo Constructor', desc: 'Restaura 1 punto de vida a vuestro bastión.' },
+                { type: 'superbomb', icon: '💣', title: 'Super Bomba', desc: 'Vuestro próximo disparo correcto infligirá daño doble.' },
+                { type: 'empty', icon: '💨', title: 'Viento Vacío', desc: 'Este cofre solo contenía aire húmedo de las mazmorras.' },
+                { type: 'empty', icon: '💨', title: 'Viento Vacío', desc: 'Este cofre solo contenía aire húmedo de las mazmorras.' },
+                { type: 'empty', icon: '💨', title: 'Viento Vacío', desc: 'Este cofre solo contenía aire húmedo de las mazmorras.' }
+            ];
+
+            gameState.chestRewards = rewardsPool.sort(() => Math.random() - 0.5);
+
+            const container = document.getElementById("chests-container");
+            container.innerHTML = "";
+
+            for (let i = 0; i < 10; i++) {
+                const card = document.createElement("div");
+                card.className = "chest-card h-28 cursor-pointer relative";
+                card.setAttribute("onclick", `flipChest(${i})`);
+                
+                card.innerHTML = `
+                    <div class="chest-inner w-full h-full relative" id="chest-inner-${i}">
+                        <!-- Cara Frontal (Cerrado 3D) -->
+                        <div class="chest-front absolute inset-0 bg-gradient-to-b from-amber-900 to-amber-950 border-2 border-amber-600 rounded-xl flex flex-col items-center justify-center text-white p-2 shadow-2xl hover:border-yellow-400 transition-all">
+                            <!-- Cofre dibujado en perspectiva -->
+                            <span class="text-4xl filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]">📦</span>
+                            <span class="text-[10px] font-medieval mt-1 text-amber-300">TESORO ${i+1}</span>
+                        </div>
+                        <!-- Cara Trasera (Revelado) -->
+                        <div class="chest-back absolute inset-0 bg-gradient-to-b from-stone-900 to-stone-950 border-2 border-purple-500 rounded-xl flex flex-col items-center justify-center text-white p-1 text-center shadow-inner">
+                            <span class="text-3xl filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" id="chest-back-icon-${i}">❓</span>
+                            <span class="text-[9px] font-bold text-purple-300 truncate w-full mt-1" id="chest-back-title-${i}">Item</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+
+            openModal('modal-bonus');
+        }
+
+        function flipChest(index) {
+            sound.playClick();
+            
+            const activeCastle = gameState.castles[gameState.currentTurn];
+            activeCastle.bonusCooldown = 3;
+
+            const allChests = document.querySelectorAll(".chest-card");
+            allChests.forEach(card => card.removeAttribute("onclick"));
+
+            const reward = gameState.chestRewards[index];
+            
+            document.getElementById(`chest-back-icon-${index}`).innerText = reward.icon;
+            document.getElementById(`chest-back-title-${index}`).innerText = reward.title;
+            document.getElementById(`chest-inner-${index}`).parentElement.classList.add("flipped");
+
+            setTimeout(() => {
+                applyBonusReward(reward);
+                closeModal('modal-bonus');
+            }, 1400);
+        }
+
+        function applyBonusReward(reward) {
+            const activeCastle = gameState.castles[gameState.currentTurn];
+
+            switch (reward.type) {
+                case 'shield':
+                    activeCastle.shield++;
+                    sound.playShield();
+                    logAction(`🎁 ¡<strong class="text-white">${activeCastle.name}</strong> obtuvo un 🛡️ ${reward.title}!`, "bonus");
+                    showFeedbackModal("🛡️ PROTECCIÓN OBTENIDA", "Se ha erigido un escudo mágico sobre vuestra torre para bloquear el próximo disparo.", [
+                        { label: "Excelente", action: () => { closeModal('modal-feedback'); updateUI(); } }
+                    ]);
+                    break;
+
+                case 'hammer':
+                    sound.playRepair();
+                    if (activeCastle.hp < 5) {
+                        activeCastle.hp++;
+                        logAction(`🎁 ¡<strong class="text-white">${activeCastle.name}</strong> reparó sus murallas con un 🔨 ${reward.title}! Restaura 1 HP.`, "bonus");
+                        showFeedbackModal("🔨 RECONSTRUCCIÓN 3D", "Constructores del imperio han reparado 1 punto de daño real en vuestros muros.", [
+                            { label: "Estupendo", action: () => { closeModal('modal-feedback'); updateUI(); } }
+                        ]);
+                    } else {
+                        logAction(`🎁 <strong class="text-white">${activeCastle.name}</strong> encontró un 🔨 ${reward.title}, pero sus defensas estaban completas. No tuvo efecto.`, "warning");
+                        showFeedbackModal("🔨 MARTILLO SIN EFECTO", "Vuestras murallas se encuentran en estado óptimo. El martillo no ha surtido efecto.", [
+                            { label: "De acuerdo", action: () => { closeModal('modal-feedback'); updateUI(); } }
+                        ]);
+                    }
+                    break;
+
+                case 'superbomb':
+                    activeCastle.superbomb = true;
+                    sound.playClick();
+                    logAction(`🎁 ¡<strong class="text-white">${activeCastle.name}</strong> armó una 💣 Súper Bomba de asedio!`, "bonus");
+                    showFeedbackModal("💣 ARMAMENTO PESADO", "¡Letal! Vuestro siguiente asalto correcto causará daño doble (2 HP) e impacto masivo.", [
+                        { label: "¡A Disparar!", action: () => { closeModal('modal-feedback'); updateUI(); } }
+                    ]);
+                    break;
+
+                case 'empty':
+                    sound.playIncorrect();
+                    logAction(`💨 <strong class="text-white">${activeCastle.name}</strong> abrió un cofre vacío.`, "info");
+                    showFeedbackModal("💨 COFRE VACÍO", "La fortuna os ha ignorado esta vez. No habéis encontrado nada de valor en la caja.", [
+                        { label: "Continuar", action: () => { closeModal('modal-feedback'); updateUI(); } }
+                    ]);
+                    break;
+            }
+        }
+
+
+        /*************************************************************
+         * M. CONTROL DE VENTANAS MODALES DINÁMICAS
+         *************************************************************/
+        function openModal(id) {
+            document.getElementById(id).classList.remove("hidden");
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add("hidden");
+        }
+
+        function showFeedbackModal(title, message, buttons = []) {
+            document.getElementById("feedback-title").innerHTML = title;
+            document.getElementById("feedback-message").innerHTML = message;
+
+            const btnContainer = document.getElementById("feedback-buttons-container");
+            btnContainer.innerHTML = "";
+
+            if (buttons.length === 0) {
+                buttons.push({ label: "ENTENDIDO", action: () => closeModal('modal-feedback') });
+            }
+
+            buttons.forEach(btnConfig => {
+                const btn = document.createElement("button");
+                btn.className = "rpg-btn py-2.5 px-5 text-xs font-medieval text-white font-bold rounded-lg tracking-wider shadow-md";
+                btn.innerText = btnConfig.label;
+                btn.onclick = btnConfig.action;
+                btnContainer.appendChild(btn);
+            });
+
+            openModal('modal-feedback');
+        }
+    </script>
+
+    <!-- ================= MOTOR 3D REAL (Three.js) ================= -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        const CASTLE_TAILWIND_COLORS = window.CASTLE_TAILWIND_COLORS;
+        const MAP_POSITIONS = window.MAP_POSITIONS;
+
+        let scene, camera, renderer, labelRenderer, controls, clock;
+        let raycaster, mouse;
+        let castleEntries = [];           // un objeto por castillo, indexado por posición de turno
+        let liveGameState = null;
+        let initialized = false;
+        let cameraFlightTarget = null;    // {pos:Vector3, look:Vector3, t:0} para vuelos de cámara suaves
+        let autoOrbit = false;
+
+        const canvasEl = document.getElementById('three-canvas');
+        const css2dContainer = document.getElementById('css2d-container');
+        const loadingEl = document.getElementById('three-loading');
+        const containerEl = document.getElementById('battle-arena');
+
+        // ---------- Utilidades ----------
+        function seededNoise(seed) {
+            const x = Math.sin(seed * 12.9898) * 43758.5453;
+            return x - Math.floor(x);
+        }
+
+        function worldPosFor(colorKey) {
+            const pos = MAP_POSITIONS[colorKey];
+            return {
+                x: (pos.x - 50) / 100 * 46,
+                z: (pos.y - 50) / 100 * 30,
+                terrain: pos.terrain
+            };
+        }
+
+        // ---------- Inicialización de la escena ----------
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a2e38);
+            scene.fog = new THREE.FogExp2(0x0a2e38, 0.014);
+
+            const w = canvasEl.clientWidth || 800;
+            const h = canvasEl.clientHeight || 500;
+            camera = new THREE.PerspectiveCamera(45, w / h, 0.5, 400);
+            camera.position.set(2, 30, 40);
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+            labelRenderer = new CSS2DRenderer();
+            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.domElement.style.top = '0';
+            labelRenderer.domElement.style.left = '0';
+            labelRenderer.domElement.style.width = '100%';
+            labelRenderer.domElement.style.height = '100%';
+            labelRenderer.domElement.style.pointerEvents = 'none';
+            css2dContainer.appendChild(labelRenderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 2, 0);
+            controls.minDistance = 16;
+            controls.maxDistance = 65;
+            controls.maxPolarAngle = Math.PI * 0.48;
+            controls.enablePan = false;
+            controls.update();
+
+            // ---------- Iluminación realista con sombras reales ----------
+            scene.add(new THREE.HemisphereLight(0xaee4f2, 0x14323a, 0.75));
+            const sun = new THREE.DirectionalLight(0xfff0cf, 1.25);
+            sun.position.set(28, 42, 18);
+            sun.castShadow = true;
+            sun.shadow.mapSize.set(2048, 2048);
+            sun.shadow.camera.left = -45;
+            sun.shadow.camera.right = 45;
+            sun.shadow.camera.top = 45;
+            sun.shadow.camera.bottom = -45;
+            sun.shadow.camera.far = 140;
+            sun.shadow.bias = -0.0017;
+            scene.add(sun);
+            const fillLight = new THREE.DirectionalLight(0x6fb6e0, 0.35);
+            fillLight.position.set(-22, 14, -18);
+            scene.add(fillLight);
+
+            buildOcean();
+            buildIslands();
+
+            clock = new THREE.Clock();
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            renderer.domElement.style.cursor = 'grab';
+            let pointerDownPos = null;
+            renderer.domElement.addEventListener('pointerdown', (e) => {
+                renderer.domElement.style.cursor = 'grabbing';
+                pointerDownPos = { x: e.clientX, y: e.clientY };
+            });
+            renderer.domElement.addEventListener('pointerup', (e) => {
+                renderer.domElement.style.cursor = 'grab';
+                if (pointerDownPos) {
+                    const dx = e.clientX - pointerDownPos.x;
+                    const dy = e.clientY - pointerDownPos.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < 6) onCanvasClick(e);
+                }
+                pointerDownPos = null;
+            });
+
+            const ro = new ResizeObserver(onResize);
+            ro.observe(containerEl);
+            onResize();
+
+            if (loadingEl) loadingEl.style.display = 'none';
+            initialized = true;
+            animate();
+        }
+
+        function onResize() {
+            const w = containerEl.clientWidth || 800;
+            const h = containerEl.clientHeight || 500;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h, false);
+            labelRenderer.setSize(w, h);
+        }
+
+        // ---------- Océano con oleaje animado real (desplazamiento de vértices) ----------
+        let oceanMesh, oceanGeoBase;
+        function buildOcean() {
+            const geo = new THREE.PlaneGeometry(220, 160, 90, 70);
+            geo.rotateX(-Math.PI / 2);
+            oceanGeoBase = geo.attributes.position.array.slice();
+            const mat = new THREE.MeshStandardMaterial({ color: 0x0e5c6e, roughness: 0.35, metalness: 0.15, transparent: true, opacity: 0.92 });
+            oceanMesh = new THREE.Mesh(geo, mat);
+            oceanMesh.receiveShadow = true;
+            oceanMesh.position.y = -0.4;
+            scene.add(oceanMesh);
+
+            const floorGeo = new THREE.PlaneGeometry(220, 160);
+            floorGeo.rotateX(-Math.PI / 2);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x031b22 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.position.y = -3.5;
+            scene.add(floor);
+        }
+
+        // ---------- Construcción de las 5 islas con detalle por bioma ----------
+        const ISLAND_RADIUS = { forest: 9.5, mountain: 10.2, crimson: 9, ice: 8.6, crystal: 9 };
+        const ISLAND_COLOR = {
+            forest: 0x2f7a3e, mountain: 0xa8793a, crimson: 0x76241f, ice: 0x7fb3d6, crystal: 0x7a429e
+        };
+        const islandHeights = {}; // colorKey -> altura de la isla (para apoyar el castillo encima)
+
+        function buildIslands() {
+            Object.keys(MAP_POSITIONS).forEach((colorKey, idx) => {
+                const wp = worldPosFor(colorKey);
+                const r = ISLAND_RADIUS[wp.terrain];
+                const islandHeight = 2.6;
+                islandHeights[colorKey] = islandHeight;
+
+                // Montículo de la isla (geometría baja-poli irregular para look orgánico)
+                const islandGeo = new THREE.CylinderGeometry(r * 0.74, r, islandHeight, 9, 1);
+                const posAttr = islandGeo.attributes.position;
+                for (let i = 0; i < posAttr.count; i++) {
+                    const vx = posAttr.getX(i), vy = posAttr.getY(i), vz = posAttr.getZ(i);
+                    if (vy > islandHeight * 0.3) {
+                        const n = (seededNoise(i + idx * 99) - 0.5) * 1.4;
+                        posAttr.setX(i, vx + n);
+                        posAttr.setZ(i, vz + n * 0.8);
+                    }
+                }
+                islandGeo.computeVertexNormals();
+                const islandMat = new THREE.MeshStandardMaterial({ color: ISLAND_COLOR[wp.terrain], roughness: 0.95, flatShading: true });
+                const islandMesh = new THREE.Mesh(islandGeo, islandMat);
+                islandMesh.position.set(wp.x, islandHeight / 2, wp.z);
+                islandMesh.castShadow = true;
+                islandMesh.receiveShadow = true;
+                scene.add(islandMesh);
+
+                // Anillo de costa (arena) en la base
+                const coastGeo = new THREE.CylinderGeometry(r + 1.3, r + 2.2, 0.5, 24);
+                const coastMat = new THREE.MeshStandardMaterial({ color: 0xe8d9a8, roughness: 1 });
+                const coast = new THREE.Mesh(coastGeo, coastMat);
+                coast.position.set(wp.x, 0.1, wp.z);
+                coast.receiveShadow = true;
+                scene.add(coast);
+
+                decorateIsland(wp, r, islandHeight, idx);
+            });
+        }
+
+        function decorateIsland(wp, r, islandHeight, idx) {
+            const baseY = islandHeight;
+            if (wp.terrain === 'forest') {
+                for (let i = 0; i < 16; i++) {
+                    const a = seededNoise(i * 4.4 + idx) * Math.PI * 2;
+                    const rad = 1.5 + seededNoise(i * 8.8 + idx) * (r * 0.65);
+                    const tx = wp.x + Math.cos(a) * rad;
+                    const tz = wp.z + Math.sin(a) * rad;
+                    buildTree(tx, baseY, tz, 0.7 + seededNoise(i * 6.1) * 0.6);
+                }
+            }
+            if (wp.terrain === 'mountain') {
+                const peaks = [{ dx: -3.2, dz: 0.5, h: 6.5 }, { dx: -0.4, dz: -1, h: 8.2 }, { dx: 3, dz: 1, h: 6.8 }];
+                peaks.forEach(pk => buildPeak(wp.x + pk.dx, baseY, wp.z + pk.dz, pk.h, true));
+            }
+            if (wp.terrain === 'crimson') {
+                const peaks = [{ dx: -2.6, dz: 0.6, h: 5.2 }, { dx: 1, dz: -0.6, h: 6.6 }, { dx: 3.6, dz: 1, h: 4.4 }];
+                peaks.forEach(pk => buildPeak(wp.x + pk.dx, baseY, wp.z + pk.dz, pk.h, false, 0x6b241f));
+                for (let i = 0; i < 5; i++) {
+                    const a = seededNoise(i * 5.5 + 9) * Math.PI * 2;
+                    const rad = 3 + seededNoise(i * 2.2) * (r * 0.5);
+                    buildDeadTree(wp.x + Math.cos(a) * rad, baseY, wp.z + Math.sin(a) * rad);
+                }
+            }
+            if (wp.terrain === 'ice') {
+                for (let i = 0; i < 9; i++) {
+                    const a = seededNoise(i * 6.6 + 3) * Math.PI * 2;
+                    const rad = 1.5 + seededNoise(i * 3.3) * (r * 0.6);
+                    buildIceShard(wp.x + Math.cos(a) * rad, baseY, wp.z + Math.sin(a) * rad, 1.4 + seededNoise(i * 7) * 1.6);
+                }
+            }
+            if (wp.terrain === 'crystal') {
+                const glowGeo = new THREE.SphereGeometry(r * 0.9, 16, 12);
+                const glowMat = new THREE.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0.12 });
+                const glow = new THREE.Mesh(glowGeo, glowMat);
+                glow.position.set(wp.x, baseY + 2, wp.z);
+                scene.add(glow);
+                const pLight = new THREE.PointLight(0xc084fc, 1.2, 16);
+                pLight.position.set(wp.x, baseY + 3, wp.z);
+                scene.add(pLight);
+                for (let i = 0; i < 9; i++) {
+                    const a = seededNoise(i * 8.8 + 5) * Math.PI * 2;
+                    const rad = 1.5 + seededNoise(i * 4.4) * (r * 0.6);
+                    buildCrystal(wp.x + Math.cos(a) * rad, baseY, wp.z + Math.sin(a) * rad, 1.2 + seededNoise(i * 9.9) * 1.8);
+                }
+            }
+        }
+
+        function buildTree(x, y, z, scale) {
+            const trunkGeo = new THREE.CylinderGeometry(0.08 * scale, 0.12 * scale, 0.7 * scale, 6);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3017, flatShading: true });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.set(x, y + 0.35 * scale, z);
+            trunk.castShadow = true;
+            scene.add(trunk);
+
+            const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2f8a3e, flatShading: true });
+            [0, 1, 2].forEach(i => {
+                const s = (1.3 - i * 0.28) * scale;
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(s * 0.62, s, 7), foliageMat);
+                cone.position.set(x, y + (0.75 + i * 0.55) * scale, z);
+                cone.castShadow = true;
+                scene.add(cone);
+            });
+        }
+
+        function buildDeadTree(x, y, z) {
+            const mat = new THREE.MeshStandardMaterial({ color: 0x1c1410, flatShading: true });
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 1.2, 5), mat);
+            trunk.position.set(x, y + 0.6, z);
+            trunk.castShadow = true;
+            scene.add(trunk);
+            [[-0.3, 0.9, -0.2], [0.3, 1.0, 0.15]].forEach(([dx, dy, rz]) => {
+                const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.5, 4), mat);
+                branch.position.set(x + dx, y + dy, z);
+                branch.rotation.z = rz;
+                scene.add(branch);
+            });
+        }
+
+        function buildPeak(x, y, z, h, snow, color = 0x857c74) {
+            const mat = new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 });
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(h * 0.42, h, 6), mat);
+            cone.position.set(x, y + h / 2, z);
+            cone.castShadow = true;
+            cone.receiveShadow = true;
+            scene.add(cone);
+            if (snow) {
+                const snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true });
+                const cap = new THREE.Mesh(new THREE.ConeGeometry(h * 0.18, h * 0.32, 6), snowMat);
+                cap.position.set(x, y + h * 0.92, z);
+                scene.add(cap);
+            }
+        }
+
+        function buildIceShard(x, y, z, h) {
+            const mat = new THREE.MeshPhysicalMaterial({ color: 0xbfe6f7, transparent: true, opacity: 0.75, roughness: 0.05, transmission: 0.4, thickness: 1 });
+            const shard = new THREE.Mesh(new THREE.OctahedronGeometry(h * 0.32, 0), mat);
+            shard.scale.set(1, h, 1);
+            shard.position.set(x, y + h * 0.4, z);
+            shard.rotation.y = Math.random() * Math.PI;
+            shard.castShadow = true;
+            scene.add(shard);
+        }
+
+        function buildCrystal(x, y, z, h) {
+            const mat = new THREE.MeshStandardMaterial({ color: 0x9d5fe0, emissive: 0x6b21a8, emissiveIntensity: 0.5, flatShading: true });
+            const shard = new THREE.Mesh(new THREE.OctahedronGeometry(h * 0.3, 0), mat);
+            shard.scale.set(1, h, 1);
+            shard.position.set(x, y + h * 0.4, z);
+            shard.rotation.y = Math.random() * Math.PI;
+            shard.castShadow = true;
+            scene.add(shard);
+        }
+
+        // ---------- Construcción de un castillo (geometría real, no sprites) ----------
+        function buildCastle(colorKey) {
+            const colorConfig = CASTLE_TAILWIND_COLORS[colorKey];
+            const hex = new THREE.Color(colorConfig.hex);
+            const group = new THREE.Group();
+
+            const stoneMat = new THREE.MeshStandardMaterial({ color: 0x8a838a, roughness: 0.9, flatShading: true });
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0xc5481f, roughness: 0.7, flatShading: true });
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0c, roughness: 1 });
+
+            function makeTower(height, radius) {
+                const t = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 1.05, height, 8), stoneMat);
+                body.position.y = height / 2;
+                body.castShadow = true;
+                body.receiveShadow = true;
+                t.add(body);
+                const roof = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.25, height * 0.55, 8), roofMat);
+                roof.position.y = height + (height * 0.55) / 2;
+                roof.castShadow = true;
+                t.add(roof);
+                const tip = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.14, 6, 6), new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0x7a5a0a }));
+                tip.position.y = height + height * 0.55 + radius * 0.14;
+                t.add(tip);
+                return t;
+            }
+
+            const central = makeTower(3.2, 1.05);
+            central.position.set(0, 0, 0);
+            group.add(central);
+
+            const left = makeTower(2.2, 0.78);
+            left.position.set(-1.9, 0, -1.5);
+            group.add(left);
+
+            const right = makeTower(2.2, 0.78);
+            right.position.set(1.9, 0, -1.5);
+            group.add(right);
+
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.6, 1.6), stoneMat);
+            wall.position.set(0, 0.8, -0.9);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            group.add(wall);
+
+            const door = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1, 0.3), doorMat);
+            door.position.set(0, 0.5, -0.05);
+            group.add(door);
+
+            // Estandarte con el color del reino
+            const bannerGeo = new THREE.PlaneGeometry(0.9, 0.55);
+            const bannerMat = new THREE.MeshStandardMaterial({ color: hex, side: THREE.DoubleSide });
+            const banner = new THREE.Mesh(bannerGeo, bannerMat);
+            banner.position.set(0.5, 3.85, 0);
+            group.add(banner);
+
+            // Fuego/humo de daño (ocultos por defecto)
+            const fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a1f, transparent: true, opacity: 0.85 });
+            const fire = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1, 6), fireMat);
+            fire.position.set(-0.6, 1.4, -0.6);
+            fire.visible = false;
+            group.add(fire);
+            const smokeMat = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.55 });
+            const smoke = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), smokeMat);
+            smoke.position.set(-0.6, 2.6, -0.6);
+            smoke.visible = false;
+            group.add(smoke);
+
+            return { group, left, right, central, wall, door, banner, fire, smoke };
+        }
+
+        // ---------- Construcción de un rey 3D (geometría real, "rey robusto") ----------
+        function buildKing(colorKey) {
+            const colorConfig = CASTLE_TAILWIND_COLORS[colorKey];
+            const hex = new THREE.Color(colorConfig.hex);
+            const group = new THREE.Group();
+
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbcb96, flatShading: true });
+            const robeMat = new THREE.MeshStandardMaterial({ color: hex, flatShading: true });
+            const beardMat = new THREE.MeshStandardMaterial({ color: 0x2c2622, flatShading: true });
+            const goldMat = new THREE.MeshStandardMaterial({ color: 0xf6c453, metalness: 0.6, roughness: 0.35, flatShading: true });
+
+            const body = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.15, 8), robeMat);
+            body.position.y = 0.7;
+            body.castShadow = true;
+            group.add(body);
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), skinMat);
+            head.position.y = 1.55;
+            head.castShadow = true;
+            group.add(head);
+
+            const beard = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.5, 8), beardMat);
+            beard.position.set(0, 1.28, 0.12);
+            beard.rotation.x = Math.PI;
+            group.add(beard);
+
+            // Ojos simples
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1c1917 });
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), eyeMat);
+            eyeL.position.set(-0.15, 1.62, 0.37);
+            const eyeR = eyeL.clone();
+            eyeR.position.x = 0.15;
+            group.add(eyeL, eyeR);
+
+            // Corona
+            const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, 0.16, 8), goldMat);
+            crownBase.position.y = 1.95;
+            group.add(crownBase);
+            for (let i = 0; i < 5; i++) {
+                const a = (i / 5) * Math.PI * 2;
+                const spike = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 5), goldMat);
+                spike.position.set(Math.cos(a) * 0.28, 2.12, Math.sin(a) * 0.28);
+                group.add(spike);
+            }
+            const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), new THREE.MeshStandardMaterial({ color: hex, emissive: hex, emissiveIntensity: 0.6 }));
+            gem.position.y = 2.0;
+            group.add(gem);
+
+            // Brazos
+            const armMat = robeMat;
+            const armL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), armMat);
+            armL.position.set(-0.55, 1.05, 0);
+            const armR = armL.clone();
+            armR.position.x = 0.55;
+            group.add(armL, armR);
+
+            // Espada
+            const sword = new THREE.Group();
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 0.03), new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.7, roughness: 0.3 }));
+            blade.position.y = 0.45;
+            const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.06), goldMat);
+            sword.add(blade, hilt);
+            sword.position.set(0.7, 1.1, 0);
+            sword.rotation.z = 0.4;
+            group.add(sword);
+
+            group.scale.set(0.62, 0.62, 0.62);
+
+            return { group, head, body, armL, armR, sword, beard, eyeL, eyeR };
+        }
+
+        // ---------- Etiquetas CSS2D (nombre, HP, recursos) ----------
+        function buildLabel(castle) {
+            const wrap = document.createElement('div');
+            wrap.style.pointerEvents = 'none';
+            wrap.style.display = 'flex';
+            wrap.style.flexDirection = 'column';
+            wrap.style.alignItems = 'center';
+            wrap.style.gap = '2px';
+            wrap.style.transform = 'translateY(-6px)';
+
+            const colorConfig = CASTLE_TAILWIND_COLORS[castle.color];
+            const nameTag = document.createElement('div');
+            nameTag.className = 'font-medieval font-bold text-white text-[11px] px-2 py-0.5 rounded-md shadow-lg whitespace-nowrap';
+            nameTag.style.background = 'rgba(10,10,15,0.78)';
+            nameTag.style.border = `1px solid ${colorConfig.hex}`;
+            nameTag.textContent = castle.name;
+
+            const hpOuter = document.createElement('div');
+            hpOuter.style.width = '64px';
+            hpOuter.style.height = '6px';
+            hpOuter.style.background = '#1c1917';
+            hpOuter.style.borderRadius = '4px';
+            hpOuter.style.overflow = 'hidden';
+            hpOuter.style.border = '1px solid rgba(124,58,237,0.4)';
+            const hpFill = document.createElement('div');
+            hpFill.style.height = '100%';
+            hpFill.style.width = '100%';
+            hpFill.style.background = '#10b981';
+            hpFill.style.transition = 'width .3s ease, background .3s ease';
+            hpOuter.appendChild(hpFill);
+
+            const resRow = document.createElement('div');
+            resRow.className = 'flex gap-1.5 text-[9px] font-bold';
+            resRow.style.textShadow = '0 1px 2px rgba(0,0,0,0.9)';
+
+            wrap.appendChild(nameTag);
+            wrap.appendChild(hpOuter);
+            wrap.appendChild(resRow);
+
+            const obj = new CSS2DObject(wrap);
+            return { obj, nameTag, hpFill, resRow };
+        }
+
+        // ---------- API pública: construir todos los castillos para una nueva partida ----------
+        function buildAllCastles(castlesData) {
+            // Limpia castillos previos si existían (nueva partida tras reload no debería tenerlos, pero por seguridad)
+            castleEntries.forEach(e => scene.remove(e.root));
+            castleEntries = [];
+
+            castlesData.forEach((castle, index) => {
+                const wp = worldPosFor(castle.color);
+                const baseY = islandHeights[castle.color] || 2.6;
+
+                const root = new THREE.Group();
+                root.position.set(wp.x, baseY, wp.z);
+                scene.add(root);
+
+                const castleParts = buildCastle(castle.color);
+                root.add(castleParts.group);
+
+                const kingParts = buildKing(castle.color);
+                kingParts.group.position.set(0, 4.3, 0);
+                root.add(kingParts.group);
+
+                // Anillo de turno activo
+                const turnRing = new THREE.Mesh(
+                    new THREE.RingGeometry(2.6, 2.9, 32),
+                    new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0, side: THREE.DoubleSide })
+                );
+                turnRing.rotation.x = -Math.PI / 2;
+                turnRing.position.y = 0.05;
+                root.add(turnRing);
+
+                // Anillo de objetivo (rojo, parpadeante durante selección de ataque)
+                const targetRing = new THREE.Mesh(
+                    new THREE.RingGeometry(2.9, 3.3, 32),
+                    new THREE.MeshBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0, side: THREE.DoubleSide })
+                );
+                targetRing.rotation.x = -Math.PI / 2;
+                targetRing.position.y = 0.06;
+                root.add(targetRing);
+
+                // Flecha flotante que señala al castillo cuyo turno está activo
+                const turnArrow = buildTurnArrow(castle.color);
+                turnArrow.position.set(0, 7.6, 0);
+                turnArrow.visible = false;
+                root.add(turnArrow);
+
+                const label = buildLabel(castle);
+                label.obj.position.set(0, 5.6, 0);
+                root.add(label.obj);
+
+                castleEntries.push({
+                    index, root, ...castleParts, king: kingParts,
+                    turnRing, targetRing, turnArrow, label,
+                    mood: 'idle', moodStart: performance.now(),
+                    destroyed: false, hpVisualStage: 5
+                });
+            });
+        }
+
+        // ---------- Flecha 3D indicadora de turno (cono apuntando hacia abajo + asta dorada) ----------
+        function buildTurnArrow(colorKey) {
+            const colorConfig = CASTLE_TAILWIND_COLORS[colorKey];
+            const group = new THREE.Group();
+
+            const tipMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xb45309, emissiveIntensity: 0.7, flatShading: true });
+            const tip = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.9, 8), tipMat);
+            tip.rotation.x = Math.PI; // apunta hacia abajo
+            tip.position.y = 0;
+            group.add(tip);
+
+            const shaftMat = new THREE.MeshStandardMaterial({ color: colorConfig.hex, emissive: new THREE.Color(colorConfig.hex), emissiveIntensity: 0.35, flatShading: true });
+            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.9, 8), shaftMat);
+            shaft.position.y = 0.8;
+            group.add(shaft);
+
+            // Pequeña luz puntual para que la flecha se note incluso en sombra
+            const glow = new THREE.PointLight(0xfbbf24, 0.6, 4);
+            glow.position.y = 0.2;
+            group.add(glow);
+
+            return group;
+        }
+
+        // ---------- Refresco visual completo según el estado del juego ----------
+        function refresh(gameState) {
+            liveGameState = gameState;
+            if (!initialized) return;
+
+            if (castleEntries.length === 0 && gameState.castles && gameState.castles.length) {
+                buildAllCastles(gameState.castles);
+            }
+            if (castleEntries.length === 0) return;
+
+            gameState.castles.forEach((castle, i) => {
+                const entry = castleEntries[i];
+                if (!entry) return;
+
+                // Nombre / HP / recursos
+                entry.label.nameTag.textContent = castle.name;
+                const hpPct = Math.max(0, (castle.hp / 5) * 100);
+                entry.label.hpFill.style.width = hpPct + '%';
+                entry.label.hpFill.style.background = castle.hp > 3 ? '#10b981' : castle.hp > 1 ? '#f59e0b' : '#e11d48';
+                entry.label.resRow.innerHTML = `
+                    <span style="color:${castle.shield > 0 ? '#38bdf8' : '#57534e'}">🛡️${castle.shield}</span>
+                    <span style="color:${castle.hammer > 0 ? '#fbbf24' : '#57534e'}">🔨${castle.hammer}</span>
+                    <span style="color:${castle.superbomb ? '#fb7185' : '#57534e'}">💣${castle.superbomb ? 1 : 0}</span>
+                `;
+
+                // Daño estructural progresivo (igual de criterio que la versión anterior)
+                entry.left.visible = castle.hp > 1 && !castle.destroyed;
+                entry.right.visible = castle.hp > 2 && !castle.destroyed;
+                entry.fire.visible = castle.hp <= 2 && castle.hp > 0 && !castle.destroyed;
+                entry.smoke.visible = castle.hp <= 3 && castle.hp > 0 && !castle.destroyed;
+
+                // Turno activo (anillo dorado + flecha flotante)
+                const isActiveTurn = gameState.currentTurn === i && gameState.status === 'playing' && !castle.destroyed;
+                entry.turnRing.material.opacity = isActiveTurn ? 0.85 : THREE.MathUtils.lerp(entry.turnRing.material.opacity, 0, 0.2);
+                entry.turnRing.userData.pulsing = isActiveTurn;
+                entry.turnArrow.visible = isActiveTurn;
+
+                // Objetivo elegible (anillo rojo)
+                const isEligibleTarget = gameState.status === 'target_selection' && i !== gameState.currentTurn && !castle.destroyed;
+                entry.targetRing.material.opacity = isEligibleTarget ? 0.9 : 0;
+                entry.targetRing.userData.pulsing = isEligibleTarget;
+                entry.isEligibleTarget = isEligibleTarget;
+
+                // Estado de ánimo del rey -> dispara animación si cambió
+                const mood = gameState.kingMoods ? gameState.kingMoods[i] : 'idle';
+                if (mood !== entry.mood) {
+                    entry.mood = mood;
+                    entry.moodStart = performance.now();
+                    if (mood === 'destroyed') playDestroyAnimation(i);
+                }
+
+                if (castle.destroyed) entry.destroyed = true;
+            });
+        }
+
+        // ---------- Animación de destrucción de un castillo ----------
+        function playDestroyAnimation(index) {
+            const entry = castleEntries[index];
+            if (!entry) return;
+            const startRot = entry.root.rotation.z;
+            const duration = 1400;
+            const startTime = performance.now();
+            function step() {
+                const t = Math.min(1, (performance.now() - startTime) / duration);
+                entry.root.rotation.z = startRot + t * 0.45;
+                entry.root.position.y = (islandHeights[liveGameState.castles[index].color] || 2.6) - t * 1.1;
+                entry.king.group.traverse(o => { if (o.material) { o.material.transparent = true; o.material.opacity = 1 - t; } });
+                if (t < 1) requestAnimationFrame(step);
+            }
+            step();
+        }
+
+        // ---------- Catapulta y explosión real en 3D ----------
+        const activeProjectiles = [];
+        const activeBursts = [];
+
+        function fireCatapult(attackerIndex, targetIndex, isSuper, onImpact) {
+            const from = castleEntries[attackerIndex];
+            const to = castleEntries[targetIndex];
+            if (!from || !to) { onImpact(); return; }
+
+            const start = new THREE.Vector3();
+            from.root.getWorldPosition(start);
+            start.y += 4.6;
+            const end = new THREE.Vector3();
+            to.root.getWorldPosition(end);
+            end.y += 2.2;
+
+            const mid = start.clone().add(end).multiplyScalar(0.5);
+            mid.y += 9 + (isSuper ? 4 : 0);
+            const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+
+            const geo = new THREE.SphereGeometry(isSuper ? 0.55 : 0.38, 10, 8);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x2b2622, roughness: 0.8 });
+            const ball = new THREE.Mesh(geo, mat);
+            ball.castShadow = true;
+            scene.add(ball);
+
+            activeProjectiles.push({ ball, curve, t: 0, speed: isSuper ? 0.55 : 0.65, onImpact, isSuper, target: to });
+        }
+
+        function spawnBurst(position, isSuper) {
+            const count = isSuper ? 46 : 26;
+            const colors = [0xf43f5e, 0xff781f, 0xfcd34d, 0x57534e];
+            for (let i = 0; i < count; i++) {
+                const mat = new THREE.MeshBasicMaterial({ color: colors[i % colors.length], transparent: true, opacity: 1 });
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), mat);
+                mesh.position.copy(position);
+                scene.add(mesh);
+                const vel = new THREE.Vector3((Math.random() - 0.5) * 8, Math.random() * 7 + 2, (Math.random() - 0.5) * 8);
+                activeBursts.push({ mesh, vel, life: 1 });
+            }
+
+            const flashMat = new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0.9 });
+            const flash = new THREE.Mesh(new THREE.SphereGeometry(isSuper ? 2.4 : 1.5, 10, 8), flashMat);
+            flash.position.copy(position);
+            scene.add(flash);
+            activeBursts.push({ mesh: flash, vel: new THREE.Vector3(0, 0, 0), life: 0.4, isFlash: true });
+
+            containerEl.classList.add('screen-shake');
+            setTimeout(() => containerEl.classList.remove('screen-shake'), 400);
+        }
+
+        // ---------- Vuelo de cámara hacia el rey ganador ----------
+        function playVictory(winnerIndex) {
+            const entry = castleEntries[winnerIndex];
+            if (!entry) return;
+            const target = new THREE.Vector3();
+            entry.root.getWorldPosition(target);
+            cameraFlightTarget = {
+                pos: target.clone().add(new THREE.Vector3(8, 7, 10)),
+                look: target.clone().add(new THREE.Vector3(0, 3, 0)),
+                t: 0
+            };
+            autoOrbit = true;
+        }
+
+        // ---------- Selección de objetivo vía raycasting real sobre la escena 3D ----------
+        function onCanvasClick(event) {
+            if (!liveGameState || liveGameState.status !== 'target_selection') return;
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            for (let i = 0; i < castleEntries.length; i++) {
+                const entry = castleEntries[i];
+                if (!entry.isEligibleTarget) continue;
+                const hits = raycaster.intersectObject(entry.root, true);
+                if (hits.length > 0) {
+                    if (window.executeCatapultAttack) window.executeCatapultAttack(i);
+                    return;
+                }
+            }
+        }
+
+        // ---------- Bucle de animación principal ----------
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.05);
+            const elapsed = clock.elapsedTime;
+
+            // Oleaje del océano
+            const posAttr = oceanMesh.geometry.attributes.position;
+            for (let i = 0; i < posAttr.count; i++) {
+                const bx = oceanGeoBase[i * 3], bz = oceanGeoBase[i * 3 + 2];
+                posAttr.setY(i, Math.sin(bx * 0.18 + elapsed * 1.1) * 0.12 + Math.cos(bz * 0.22 + elapsed * 0.9) * 0.1);
+            }
+            posAttr.needsUpdate = true;
+
+            // Anillos pulsantes
+            castleEntries.forEach(entry => {
+                if (entry.turnRing.userData.pulsing) {
+                    entry.turnRing.material.opacity = 0.55 + Math.sin(elapsed * 4) * 0.3;
+                    entry.turnRing.rotation.z += dt * 0.6;
+                }
+                if (entry.targetRing.userData.pulsing) {
+                    entry.targetRing.material.opacity = 0.6 + Math.sin(elapsed * 6) * 0.35;
+                    entry.targetRing.scale.setScalar(1 + Math.sin(elapsed * 5) * 0.04);
+                }
+                if (entry.turnArrow.visible) {
+                    entry.turnArrow.position.y = 7.6 + Math.sin(elapsed * 4.5) * 0.4;
+                    entry.turnArrow.rotation.y += dt * 2.2;
+                }
+
+                // Animación del rey según su estado de ánimo
+                const t = (performance.now() - entry.moodStart) / 1000;
+                const k = entry.king;
+                if (!entry.destroyed) {
+                    switch (entry.mood) {
+                        case 'correct':
+                        case 'victory':
+                            k.group.position.y = 4.3 + Math.abs(Math.sin(t * 6)) * 0.5;
+                            k.group.rotation.y = Math.sin(t * 5) * 0.4;
+                            k.sword.rotation.z = 0.4 + Math.sin(t * 8) * 0.6;
+                            break;
+                        case 'incorrect':
+                            k.group.position.y = 4.3 - Math.min(t, 1) * 0.15;
+                            k.group.rotation.x = Math.min(t, 1) * 0.25;
+                            break;
+                        case 'hit':
+                            k.group.position.x = Math.sin(t * 40) * 0.08;
+                            k.group.position.y = 4.3;
+                            break;
+                        case 'shield':
+                            k.group.position.y = 4.3 + Math.sin(elapsed * 2) * 0.06;
+                            k.group.rotation.y = 0;
+                            break;
+                        default: // idle
+                            k.group.position.x = 0;
+                            k.group.rotation.x = 0;
+                            k.group.position.y = 4.3 + Math.sin(elapsed * 1.6 + entry.index) * 0.08;
+                            k.group.rotation.y = Math.sin(elapsed * 0.6 + entry.index) * 0.15;
+                            k.sword.rotation.z = 0.4;
+                    }
+                }
+                // Banderín ondeando
+                if (entry.banner) entry.banner.rotation.y = Math.sin(elapsed * 3 + entry.index) * 0.3;
+            });
+
+            // Proyectiles de catapulta
+            for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+                const p = activeProjectiles[i];
+                p.t += dt * p.speed;
+                if (p.t >= 1) {
+                    const endPos = p.curve.getPoint(1);
+                    scene.remove(p.ball);
+                    spawnBurst(endPos, p.isSuper);
+                    activeProjectiles.splice(i, 1);
+                    p.onImpact();
+                } else {
+                    const pos = p.curve.getPoint(p.t);
+                    p.ball.position.copy(pos);
+                    p.ball.rotation.x += dt * 8;
+                }
+            }
+
+            // Partículas de explosión
+            for (let i = activeBursts.length - 1; i >= 0; i--) {
+                const b = activeBursts[i];
+                b.life -= dt * (b.isFlash ? 2.4 : 1.1);
+                if (b.life <= 0) {
+                    scene.remove(b.mesh);
+                    activeBursts.splice(i, 1);
+                    continue;
+                }
+                if (!b.isFlash) {
+                    b.vel.y -= dt * 9;
+                    b.mesh.position.addScaledVector(b.vel, dt);
+                    b.mesh.rotation.x += dt * 5;
+                    b.mesh.rotation.y += dt * 5;
+                }
+                b.mesh.material.opacity = Math.max(0, b.life);
+                if (b.isFlash) b.mesh.scale.setScalar(1 + (1 - b.life) * 1.5);
+            }
+
+            // Vuelo de cámara (usado en victoria)
+            if (cameraFlightTarget) {
+                cameraFlightTarget.t = Math.min(1, cameraFlightTarget.t + dt * 0.6);
+                camera.position.lerp(cameraFlightTarget.pos, 0.04);
+                controls.target.lerp(cameraFlightTarget.look, 0.05);
+                if (cameraFlightTarget.t >= 1) cameraFlightTarget = null;
+            }
+            if (autoOrbit) {
+                controls.autoRotate = true;
+                controls.autoRotateSpeed = 1.1;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+
+        // ---------- API expuesta al script clásico del juego ----------
+        window.Arena3D = {
+            refresh,
+            fireCatapult,
+            playVictory
+        };
+
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            init();
+        } else {
+            window.addEventListener('DOMContentLoaded', init);
+        }
+    </script>
 </body>
 </html>
