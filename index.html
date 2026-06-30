@@ -277,10 +277,32 @@
                 </div>
             </div>
 
-            <button onclick="startGame()" class="rpg-btn w-full mt-6 py-4 px-8 text-xl md:text-2xl font-medieval text-white font-bold rounded-xl tracking-wider flex justify-center items-center gap-3 shadow-2xl">
+            <button onclick="openVerbEditor()" type="button" class="w-full mt-4 py-3 px-6 rounded-xl bg-stone-800/90 border border-amber-700/40 text-amber-100 font-medieval text-base hover:bg-amber-900/40 transition flex justify-center items-center gap-2">
+                📝 Cambiar verbos
+            </button>
+
+            <button onclick="startGame()" class="rpg-btn w-full mt-3 py-4 px-8 text-xl md:text-2xl font-medieval text-white font-bold rounded-xl tracking-wider flex justify-center items-center gap-3 shadow-2xl">
                 ⚔️ COMENZAR BATALLA ⚔️
             </button>
         </section>
+
+        <!-- ================= MODAL: EDITOR DE VERBOS ================= -->
+        <div id="modal-verb-editor" class="fixed inset-0 bg-black/80 z-50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="parchment text-stone-900 rounded-2xl p-5 md:p-6 w-full max-w-3xl relative max-h-[88vh] flex flex-col">
+                <button onclick="closeModal('modal-verb-editor')" class="absolute top-4 right-4 text-stone-700 hover:text-stone-900 text-2xl font-bold">✕</button>
+                <h3 class="text-xl md:text-2xl font-decorative font-bold text-center text-amber-950 mb-1">📝 EDITAR VERBOS</h3>
+                <p class="text-center text-xs text-amber-900 mb-4 font-medieval">Pasado simple, infinitivo correcto y dos alternativas incorrectas.</p>
+                <div id="verb-editor-rows" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
+                <p id="verb-editor-error" class="hidden text-rose-700 text-xs text-center mt-2 font-bold"></p>
+                <div class="flex flex-wrap gap-2 mt-4">
+                    <button onclick="addVerbRow()" type="button" class="px-4 py-2 rounded-lg bg-stone-800/90 border border-amber-700/40 text-amber-100 text-sm font-bold hover:bg-amber-900/40">➕ Añadir verbo</button>
+                    <button onclick="resetVerbRows()" type="button" class="px-4 py-2 rounded-lg bg-stone-800/90 border border-amber-700/40 text-amber-100 text-sm font-bold hover:bg-amber-900/40">↩️ Restaurar por defecto</button>
+                    <div class="flex-1"></div>
+                    <button onclick="closeModal('modal-verb-editor')" type="button" class="px-4 py-2 rounded-lg bg-stone-700/80 border border-stone-600/40 text-stone-200 text-sm font-bold hover:bg-stone-600/70">Cancelar</button>
+                    <button onclick="saveVerbRows()" type="button" class="px-5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-500 text-stone-900 text-sm font-bold hover:brightness-110">💾 Guardar</button>
+                </div>
+            </div>
+        </div>
 
         <!-- ================= PANTALLA 2: JUEGO ACTIVO ================= -->
         <section id="screen-game" class="page-transition hidden grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -623,6 +645,47 @@
                 noise.stop(now + (isSuper ? 1.4 : 0.75));
             }
 
+            playShot() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+
+                // Estampido grave de catapulta/cañón: ruido filtrado + golpe de madera
+                const bufferSize = this.ctx.sampleRate * 0.35;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(900, now);
+                filter.frequency.exponentialRampToValueAtTime(80, now + 0.3);
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(this.volume * 0.55, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(now);
+                noise.stop(now + 0.32);
+
+                // Crujido grave del brazo de madera liberándose
+                const thud = this.ctx.createOscillator();
+                const thudGain = this.ctx.createGain();
+                thud.type = 'triangle';
+                thud.frequency.setValueAtTime(140, now);
+                thud.frequency.exponentialRampToValueAtTime(45, now + 0.18);
+                thudGain.gain.setValueAtTime(this.volume * 0.5, now);
+                thudGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                thud.connect(thudGain);
+                thudGain.connect(this.ctx.destination);
+                thud.start(now);
+                thud.stop(now + 0.2);
+            }
+
             playShield() {
                 if (this.muted) return;
                 this.init();
@@ -858,7 +921,7 @@
         /*************************************************************
          * C. BASE DE PREGUNTAS (30 VERBOS EN PASADO SIMPLE)
          *************************************************************/
-        const VERBOS_PREGUNTAS = [
+        const DEFAULT_VERBOS_PREGUNTAS = [
             { id: 1, past: "ATE", correct: "EAT", options: ["EAT", "DRINK", "WRITE"] },
             { id: 2, past: "SAW", correct: "SEE", options: ["SEE", "SAY", "SING"] },
             { id: 3, past: "WENT", correct: "GO", options: ["GO", "WANT", "WALK"] },
@@ -890,6 +953,82 @@
             { id: 29, past: "STOOD", correct: "STAND", options: ["STAND", "SPEAK", "STEAL"] },
             { id: 30, past: "WON", correct: "WIN", options: ["WIN", "WRITE", "WEAR"] }
         ];
+
+        let VERBOS_PREGUNTAS = DEFAULT_VERBOS_PREGUNTAS.map(v => ({ ...v, options: [...v.options] }));
+
+        /*************************************************************
+         * C.1 EDITOR DE VERBOS
+         *************************************************************/
+        function openVerbEditor() {
+            renderVerbEditorRows();
+            openModal('modal-verb-editor');
+        }
+
+        function renderVerbEditorRows() {
+            const container = document.getElementById("verb-editor-rows");
+            container.innerHTML = "";
+            VERBOS_PREGUNTAS.forEach((v, idx) => {
+                const row = document.createElement("div");
+                row.className = "grid grid-cols-12 gap-2 items-center bg-amber-950/5 border border-amber-900/20 rounded-lg p-2";
+                row.dataset.idx = idx;
+                row.innerHTML = `
+                    <input data-field="past" value="${v.past}" placeholder="Pasado" class="col-span-3 px-2 py-1.5 rounded border border-amber-800/30 bg-white/70 text-stone-900 text-sm uppercase" />
+                    <input data-field="correct" value="${v.correct}" placeholder="Infinitivo correcto" class="col-span-3 px-2 py-1.5 rounded border border-amber-800/30 bg-white/70 text-stone-900 text-sm uppercase" />
+                    <input data-field="opt2" value="${v.options.find(o => o !== v.correct) || ''}" placeholder="Alternativa 2" class="col-span-2 px-2 py-1.5 rounded border border-amber-800/30 bg-white/70 text-stone-900 text-sm uppercase" />
+                    <input data-field="opt3" value="${v.options.filter(o => o !== v.correct)[1] || ''}" placeholder="Alternativa 3" class="col-span-3 px-2 py-1.5 rounded border border-amber-800/30 bg-white/70 text-stone-900 text-sm uppercase" />
+                    <button type="button" onclick="removeVerbRow(${idx})" class="col-span-1 text-rose-700 hover:text-rose-900 font-bold text-lg">✕</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function addVerbRow() {
+            VERBOS_PREGUNTAS.push({ id: Date.now(), past: "", correct: "", options: ["", "", ""] });
+            renderVerbEditorRows();
+        }
+
+        function removeVerbRow(idx) {
+            VERBOS_PREGUNTAS.splice(idx, 1);
+            renderVerbEditorRows();
+        }
+
+        function resetVerbRows() {
+            VERBOS_PREGUNTAS = DEFAULT_VERBOS_PREGUNTAS.map(v => ({ ...v, options: [...v.options] }));
+            renderVerbEditorRows();
+        }
+
+        function saveVerbRows() {
+            const container = document.getElementById("verb-editor-rows");
+            const rows = Array.from(container.children);
+            const errorEl = document.getElementById("verb-editor-error");
+            const updated = [];
+
+            for (const row of rows) {
+                const past = row.querySelector('[data-field="past"]').value.trim().toUpperCase();
+                const correct = row.querySelector('[data-field="correct"]').value.trim().toUpperCase();
+                const opt2 = row.querySelector('[data-field="opt2"]').value.trim().toUpperCase();
+                const opt3 = row.querySelector('[data-field="opt3"]').value.trim().toUpperCase();
+
+                if (!past || !correct || !opt2 || !opt3) {
+                    errorEl.textContent = "Completad pasado, infinitivo correcto y las dos alternativas en cada fila.";
+                    errorEl.classList.remove("hidden");
+                    return;
+                }
+
+                const options = [correct, opt2, opt3].sort(() => Math.random() - 0.5);
+                updated.push({ id: Date.now() + updated.length, past, correct, options });
+            }
+
+            if (updated.length === 0) {
+                errorEl.textContent = "Debe haber al menos un verbo.";
+                errorEl.classList.remove("hidden");
+                return;
+            }
+
+            errorEl.classList.add("hidden");
+            VERBOS_PREGUNTAS = updated;
+            closeModal('modal-verb-editor');
+        }
 
         const EMERALD = "emerald";
         const AMBER = "amber";
@@ -1473,6 +1612,8 @@
             const isSuper = gameState.superBombActive;
 
             logAction(`☄️ <strong class="text-white">${attacker.name}</strong> lanza asalto de catapulta hacia <strong class="text-white">${target.name}</strong>.`, "warning");
+
+            sound.playShot();
 
             // El motor 3D anima el proyectil real en el espacio y dispara explosión al impactar
             if (window.Arena3D) {
